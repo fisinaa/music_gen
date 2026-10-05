@@ -1,0 +1,7 @@
+*.py text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.env.example text eol=lf
+lofi_auto/lofi text eol=lf
+*.png binary

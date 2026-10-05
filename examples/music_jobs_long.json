@@ -1,0 +1,122 @@
+[
+  {
+    "number": 1,
+    "seed": 200,
+    "duration_seconds": 194,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Peaceful rainy morning. Spacious piano melody with gentle answering phrases."
+  },
+  {
+    "number": 2,
+    "seed": 201,
+    "duration_seconds": 202,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Warm late morning cafe. Light Rhodes chords beneath a flowing acoustic piano melody."
+  },
+  {
+    "number": 3,
+    "seed": 202,
+    "duration_seconds": 237,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Relaxed lunch mood. Tasteful changing jazz harmonies and a gently moving bass line."
+  },
+  {
+    "number": 4,
+    "seed": 203,
+    "duration_seconds": 205,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Unhurried sunset mood. Expressive sparse piano phrases and warm sustained harmony."
+  },
+  {
+    "number": 5,
+    "seed": 204,
+    "duration_seconds": 237,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Quiet evening after rain. Reflective piano melody and understated brushed percussion."
+  },
+  {
+    "number": 6,
+    "seed": 205,
+    "duration_seconds": 225,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Cozy intimate jazz trio. Small melodic variations between phrases, smooth transitions."
+  },
+  {
+    "number": 7,
+    "seed": 206,
+    "duration_seconds": 224,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Peaceful rainy morning. Spacious piano melody with gentle answering phrases."
+  },
+  {
+    "number": 8,
+    "seed": 207,
+    "duration_seconds": 196,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Warm late morning cafe. Light Rhodes chords beneath a flowing acoustic piano melody."
+  },
+  {
+    "number": 9,
+    "seed": 208,
+    "duration_seconds": 182,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Relaxed lunch mood. Tasteful changing jazz harmonies and a gently moving bass line."
+  },
+  {
+    "number": 10,
+    "seed": 209,
+    "duration_seconds": 226,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Unhurried sunset mood. Expressive sparse piano phrases and warm sustained harmony."
+  },
+  {
+    "number": 11,
+    "seed": 210,
+    "duration_seconds": 235,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Quiet evening after rain. Reflective piano melody and understated brushed percussion."
+  },
+  {
+    "number": 12,
+    "seed": 211,
+    "duration_seconds": 216,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Cozy intimate jazz trio. Small melodic variations between phrases, smooth transitions."
+  }
+]

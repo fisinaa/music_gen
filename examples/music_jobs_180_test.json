@@ -1,0 +1,12 @@
+[
+  {
+    "number": 1,
+    "seed": 200,
+    "duration_seconds": 180,
+    "bpm": 75,
+    "steps": 8,
+    "batch_size": 1,
+    "instrumental": true,
+    "prompt": "Instrumental intimate jazz at 75 BPM. Mellow acoustic piano, warm upright bass and very quiet brushed drums. Connected lyrical phrasing, soft dynamics, rounded note attacks. Drums stay in the background, no sharp accents or fills. Natural room ambience, no vocals. Peaceful rainy morning. Spacious piano melody with gentle answering phrases."
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "resume_no_media_changed": true,
+  "silent_rejected": true,
+  "insufficient_music_rejected": true,
+  "changed_settings_rejected": true,
+  "jobs_stable": true,
+  "duration": 30,
+  "frames": 720,
+  "final_loudness": {
+    "input_i": "-18.00",
+    "input_tp": "-3.64",
+    "input_lra": "4.40",
+    "input_thresh": "-28.36",
+    "output_i": "-17.93",
+    "output_tp": "-2.75",
+    "output_lra": "4.30",
+    "output_thresh": "-28.25",
+    "normalization_type": "dynamic",
+    "target_offset": "-0.07"
+  },
+  "long_scene_640x360": {
+    "exit_code": 0,
+    "seconds": 9.627558946609497,
+    "max_rss_mb": 131.09375
+  },
+  "live_ace_vm_tested_from_build_environment": false,
+  "flat_library": {
+    "stable_random_names": true,
+    "duplicate_export_skipped": true,
+    "seed_retained": true
+  }
+}

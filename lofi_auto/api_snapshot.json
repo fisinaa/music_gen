@@ -1,0 +1,4524 @@
+{
+  "version": "6.2.0",
+  "components": [
+    {
+      "id": 83,
+      "type": "slider",
+      "props": {
+        "minimum": 1,
+        "maximum": 20,
+        "value": 8,
+        "step": 1,
+        "label": "DiT Inference Steps",
+        "info": "How many denoising passes the DiT model makes. More steps = higher quality but slower. Turbo models: 4\u20138 steps (default 8, diminishing returns above 8). SFT models: 30\u2013100 steps (default 50). Base/unknown models default to 32 steps. Doubling steps roughly doubles generation time.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 84,
+      "type": "slider",
+      "props": {
+        "minimum": 1.0,
+        "maximum": 15.0,
+        "value": 7.0,
+        "step": 0.1,
+        "label": "DiT Guidance Scale (Base model only)",
+        "info": "Controls how strictly the output follows your caption/prompt. Higher (10\u201315) = more faithful to prompt but can sound harsh or distorted. Lower (1\u20135) = more natural/creative but may drift from your description. Default 7.0. Base model only \u2014 has no effect on turbo models.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": false,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 85,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "ode",
+            "ode"
+          ],
+          [
+            "sde",
+            "sde"
+          ]
+        ],
+        "value": "ode",
+        "type": "value",
+        "allow_custom_value": false,
+        "filterable": true,
+        "label": "Inference Method",
+        "info": "ODE (Euler): Deterministic and faster \u2014 same seed always gives same result. Recommended for most use cases. SDE (Stochastic): Adds randomness during diffusion \u2014 can produce more varied/creative results but less predictable. Try SDE if ODE results feel too 'safe'.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 86,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "euler",
+            "euler"
+          ],
+          [
+            "heun",
+            "heun"
+          ]
+        ],
+        "value": "euler",
+        "type": "value",
+        "allow_custom_value": false,
+        "filterable": true,
+        "label": "Sampler Mode",
+        "info": "Euler: Standard first-order solver (fast, default). Heun: Second-order predictor-corrector that evaluates the model twice per step for higher accuracy \u2014 produces cleaner audio especially with 8-step turbo inference, at the cost of ~2x diffusion time.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 89,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 5.0,
+        "value": 0.0,
+        "step": 0.1,
+        "label": "Velocity Norm Threshold",
+        "info": "Clamp velocity prediction norms relative to input norms at each diffusion step. Prevents outlier predictions that cause audio artifacts. 0 = disabled. Values around 1.5\u20133.0 reduce artifacts. Start with 2.0 if experimenting.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 90,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 0.5,
+        "value": 0.0,
+        "step": 0.01,
+        "label": "Velocity EMA Factor",
+        "info": "Blend current velocity prediction with the previous step via exponential moving average. Smooths the denoising trajectory for cleaner output. 0 = disabled. Values around 0.05\u20130.2 work well. Start with 0.1 if experimenting.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 94,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "Enable DCW",
+        "info": "Sampler-side correction for SNR-t bias (CVPR 2026, arXiv:2604.16044). Applies a per-band wavelet-domain correction after each diffusion step. On by default; uncheck for a clean A/B against the uncorrected sampler.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 95,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "low",
+            "low"
+          ],
+          [
+            "high",
+            "high"
+          ],
+          [
+            "double",
+            "double"
+          ],
+          [
+            "pix",
+            "pix"
+          ]
+        ],
+        "value": "double",
+        "type": "value",
+        "allow_custom_value": false,
+        "filterable": true,
+        "label": "DCW Mode",
+        "info": "low: correct low-frequency band only (matches the paper's README example; our recommended starting point). high: correct high-frequency band only. double: correct both bands with independent scalers (ACE-Step extension \u2014 not in the reference implementation). pix: direct latent-space correction, no wavelet transform.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 96,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "haar",
+            "haar"
+          ],
+          [
+            "db2",
+            "db2"
+          ],
+          [
+            "db4",
+            "db4"
+          ],
+          [
+            "sym4",
+            "sym4"
+          ],
+          [
+            "sym8",
+            "sym8"
+          ],
+          [
+            "coif2",
+            "coif2"
+          ]
+        ],
+        "value": "haar",
+        "type": "value",
+        "allow_custom_value": false,
+        "filterable": true,
+        "label": "DCW Wavelet",
+        "info": "PyWavelets basis used for the 1-D DWT along the temporal axis. haar is fastest (blocky low-pass); db4/sym8 give smoother low-band extraction.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 99,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 0.1,
+        "value": 0.05,
+        "step": 0.005,
+        "label": "DCW Scaler",
+        "info": "Correction strength for the low band (or the single band in 'high'/'pix' modes). Modulated by t_curr inside the sampler, so this value is the strength near t=1 and decays to 0 at t=0. Default 0.02; usable range 0\u20130.1. Larger values push harder but can introduce artefacts.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 100,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 0.1,
+        "value": 0.02,
+        "step": 0.005,
+        "label": "DCW High Scaler",
+        "info": "High-band correction strength, only used in 'double' mode. Usable range 0\u20130.1; try around 0.01\u20130.02 together with a small 'DCW Scaler' when you want the sampler to sharpen high-frequency detail as well.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 103,
+      "type": "checkbox",
+      "props": {
+        "value": false,
+        "label": "Use ADG (Angle Domain Guidance)",
+        "info": "Alternative guidance method that can improve prompt adherence with fewer artifacts than standard CFG. Try enabling if you get distortion at high guidance scales. Experimental \u2014 may not always improve results.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": false,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 104,
+      "type": "slider",
+      "props": {
+        "minimum": 1.0,
+        "maximum": 5.0,
+        "value": 3.0,
+        "step": 0.1,
+        "label": "Shift",
+        "info": "Controls the noise schedule timing. Higher values (3\u20135) concentrate denoising effort on early steps (better structure). Lower values (1\u20132) spread effort more evenly (finer details). Default 3.0. Only affects base models \u2014 turbo models ignore this.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 107,
+      "type": "textbox",
+      "props": {
+        "value": "",
+        "type": "text",
+        "lines": 1,
+        "placeholder": "0.97,0.76,0.615,0.5,0.395,0.28,0.18,0.085,0",
+        "label": "Custom Timesteps",
+        "info": "Advanced: Manually define the denoising schedule as comma-separated values from 1.0\u21920.0 (e.g. '0.97,0.76,0.615,0.5,0.395,0.28,0.18,0.085,0'). Overrides both Inference Steps and Shift. Leave empty to use automatic scheduling. Only change this if you know what you're doing.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 110,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "value": 0.0,
+        "step": 0.01,
+        "label": "CFG Interval Start",
+        "info": "Controls when CFG guidance kicks in during denoising (0.0 = from the very start, 1.0 = never). Lower values apply guidance for more of the process, giving stronger prompt adherence. Raising this skips guidance in early steps, which can reduce artifacts while still steering the output. Default 0.0. Only affects base models.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": false,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 111,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "value": 1.0,
+        "step": 0.01,
+        "label": "CFG Interval End",
+        "info": "Controls when CFG guidance stops during denoising (1.0 = at the very end, 0.0 = immediately). Lower values stop guidance early, letting later steps refine freely \u2014 can reduce harshness. Higher values maintain guidance longer for stronger prompt control. Default 1.0. Only affects base models.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": false,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 115,
+      "type": "textbox",
+      "props": {
+        "value": "-1",
+        "type": "text",
+        "lines": 1,
+        "label": "Seed",
+        "info": "Fixed number for reproducible results \u2014 same seed + same settings = same output. Use comma-separated values (e.g. '42,123,456') to set per-sample seeds in a batch. -1 = random.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 116,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "Random Seed",
+        "info": "When enabled, generates a new random seed each time so every generation is unique. Disable this and set a fixed seed to reproduce a specific result.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 123,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 2.0,
+        "value": 0.85,
+        "step": 0.1,
+        "label": "LM Temperature",
+        "info": "Controls creativity vs predictability of the 5Hz LM. Lower (0.0\u20130.5) = safer, more conventional musical choices. Higher (0.8\u20131.5) = more creative/surprising but riskier. Very high (1.5+) = chaotic, may produce nonsense. Default 0.85 is a good balance. Start here and adjust based on results.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 124,
+      "type": "slider",
+      "props": {
+        "minimum": 1.0,
+        "maximum": 3.0,
+        "value": 2.0,
+        "step": 0.1,
+        "label": "LM CFG Scale",
+        "info": "How strongly the LM follows your prompt vs generating freely. 1.0 = no guidance (LM ignores prompt influence). 1.5\u20132.0 = moderate guidance, good balance. 2.5\u20133.0 = strong guidance, very prompt-faithful but can reduce variety. 5.0\u20137.0 = maximum prompt control, may reduce musical quality or introduce artifacts. Values above 7.0 are experimental. Requires a negative prompt to work (set automatically if empty). Only matters when 5Hz LM is active.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 127,
+      "type": "slider",
+      "props": {
+        "minimum": 0,
+        "maximum": 100,
+        "value": 0,
+        "step": 1,
+        "label": "LM Top-K",
+        "info": "Limits LM choices to the K most likely tokens at each step. Lower (10\u201330) = more focused/predictable output. Higher (50\u2013100) = more diverse. 0 = disabled (no filtering). Works alongside Top-P \u2014 both can be active. Start with 0 (disabled) unless you want to constrain diversity.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 128,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "value": 0.9,
+        "step": 0.01,
+        "label": "LM Top-P (Nucleus Sampling)",
+        "info": "Keeps only tokens whose cumulative probability reaches P. 0.9 = consider the top 90% most likely tokens (cuts unlikely outliers). Lower (0.5\u20130.8) = more focused. 1.0 = disabled (consider all tokens). More adaptive than Top-K. Good default: 0.9\u20130.95.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 131,
+      "type": "textbox",
+      "props": {
+        "value": "NO USER INPUT",
+        "type": "text",
+        "lines": 2,
+        "placeholder": "Enter negative prompt for CFG (default: NO USER INPUT)",
+        "label": "LM Negative Prompt",
+        "info": "Tells the LM what to avoid. Only effective when LM CFG Scale > 1.0. The LM steers away from this prompt and toward your actual caption. Leave empty for the default behavior. Example: 'low quality, noise, distorted' to push away from poor outputs.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 134,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "CoT Metas (Chain-of-Thought Metadata)",
+        "info": "When enabled, the LM 'thinks through' music metadata (BPM, key, structure) before generating. Produces more coherent results but adds ~2\u20135s per generation. Disable to skip this step and use your manually set metadata directly. Recommended: keep enabled unless you've set all metadata yourself.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 135,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "CoT Language Detection",
+        "info": "When enabled, the LM auto-detects the vocal language during chain-of-thought reasoning. Useful when language is ambiguous or set to 'unknown'. Disable if you've explicitly set the vocal language.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 136,
+      "type": "checkbox",
+      "props": {
+        "value": false,
+        "label": "Constrained Decoding Debug",
+        "info": "Shows detailed logs of how the LM's output tokens are being filtered/constrained. Only useful for developers debugging token generation issues. Leave off for normal use.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 140,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "ParallelThinking",
+        "info": "When generating multiple samples (batch size > 1), processes all LM thinking in parallel instead of one-by-one. Faster but uses more VRAM. Disable if you get out-of-memory errors with large batches.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 141,
+      "type": "checkbox",
+      "props": {
+        "value": false,
+        "label": "CaptionRewrite",
+        "info": "Lets the LM enhance and expand your caption before generation. Your brief description gets rewritten into a more detailed, model-friendly prompt. Useful if you write short captions and want the LM to fill in musical details.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 146,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "FLAC",
+            "flac"
+          ],
+          [
+            "MP3",
+            "mp3"
+          ],
+          [
+            "Opus",
+            "opus"
+          ],
+          [
+            "AAC",
+            "aac"
+          ],
+          [
+            "WAV (16-bit)",
+            "wav"
+          ],
+          [
+            "WAV (32-bit Float)",
+            "wav32"
+          ]
+        ],
+        "value": "mp3",
+        "type": "value",
+        "allow_custom_value": false,
+        "filterable": true,
+        "label": "Audio Format",
+        "info": "FLAC = lossless, large files. MP3 = small files, slight quality loss. WAV 32-bit = studio quality, largest files. Opus/AAC = efficient lossy compression. Choose FLAC or WAV for production, MP3 for sharing.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "elem_id": "acestep-audio-format",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 148,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "128 kbps",
+            "128k"
+          ],
+          [
+            "192 kbps",
+            "192k"
+          ],
+          [
+            "256 kbps",
+            "256k"
+          ],
+          [
+            "320 kbps",
+            "320k"
+          ]
+        ],
+        "value": "128k",
+        "type": "value",
+        "allow_custom_value": false,
+        "filterable": true,
+        "label": "MP3 Bitrate",
+        "info": "MP3 encoding bitrate.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "elem_id": "acestep-mp3-bitrate",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 149,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "48 kHz",
+            48000
+          ],
+          [
+            "44.1 kHz",
+            44100
+          ]
+        ],
+        "value": 48000,
+        "type": "value",
+        "allow_custom_value": false,
+        "filterable": true,
+        "label": "MP3 Sample Rate",
+        "info": "MP3 encoding sample rate. Choose 44.1 kHz or 48 kHz.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "elem_id": "acestep-mp3-sample-rate",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 153,
+      "type": "slider",
+      "props": {
+        "minimum": 0.01,
+        "maximum": 1.0,
+        "value": 0.5,
+        "step": 0.01,
+        "label": "Quality Score Sensitivity",
+        "info": "Controls how the quality score maps to 0\u20131 range. Lower values (e.g. 0.5) = more spread between scores, easier to distinguish good from bad. Higher values = scores cluster together. Default 1.0. Adjust if all your scores look too similar.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "elem_id": "acestep-score-scale",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 156,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "Enable Normalization",
+        "info": "Adjusts the final audio volume to a consistent peak level. Prevents clipping (distortion from too-loud audio) and ensures all outputs are at similar loudness. Recommended to keep enabled for consistent results.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_id": "acestep-enable-normalization",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 157,
+      "type": "slider",
+      "props": {
+        "minimum": -10.0,
+        "maximum": 0.0,
+        "value": -1.0,
+        "step": 0.1,
+        "label": "Target Peak (dB)",
+        "info": "How loud the normalized audio should be. -1.0 dB = industry standard safe peak (recommended, leaves headroom). -0.1 dB = maximum loudness before clipping. Lower values (e.g. -3.0) = quieter, more headroom for further mixing/mastering.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_id": "acestep-normalization-db",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 160,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 10.0,
+        "value": 0.0,
+        "step": 0.1,
+        "label": "Fade In (seconds)",
+        "info": "Gradually increases volume from silence at the start of the audio. 0 = no fade (starts at full volume). 1\u20133s = subtle intro. 5\u201310s = dramatic slow build. Useful for avoiding abrupt starts.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_id": "acestep-fade-in-duration",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 161,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 10.0,
+        "value": 0.0,
+        "step": 0.1,
+        "label": "Fade Out (seconds)",
+        "info": "Gradually decreases volume to silence at the end of the audio. 0 = no fade (may end abruptly). 2\u20135s = smooth ending. Useful for avoiding harsh cutoffs at the end of generated audio.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_id": "acestep-fade-out-duration",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 164,
+      "type": "slider",
+      "props": {
+        "minimum": -0.2,
+        "maximum": 0.2,
+        "value": 0.0,
+        "step": 0.01,
+        "label": "Latent Shift",
+        "info": "Advanced: Shifts the internal audio representation before decoding. Try small negative values (e.g. -0.04) if your outputs have clipping/distortion. 0 = no shift (default). Only adjust if you're hearing audio artifacts.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_id": "acestep-latent-shift",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 165,
+      "type": "slider",
+      "props": {
+        "minimum": 0.5,
+        "maximum": 1.5,
+        "value": 1.0,
+        "step": 0.01,
+        "label": "Latent Rescale",
+        "info": "Advanced: Scales the internal audio representation before decoding. Values below 1.0 (e.g. 0.91) can reduce clipping/distortion. 1.0 = no rescale (default). Only adjust if you're hearing audio artifacts despite normalization.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_id": "acestep-latent-rescale",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 169,
+      "type": "number",
+      "props": {
+        "value": 8,
+        "label": "LM Batch Chunk Size",
+        "info": "How many samples the LM processes at once. Higher = faster batch generation but uses more VRAM. Lower if you get out-of-memory errors during batch generation. Default 8. Reduce to 1\u20134 on GPUs with <12GB VRAM.",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "elem_id": "acestep-lm-batch-chunk-size",
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "minimum": 1,
+        "maximum": 32,
+        "step": 1,
+        "name": "number",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 175,
+      "type": "radio",
+      "props": {
+        "choices": [
+          [
+            "Simple",
+            "Simple"
+          ],
+          [
+            "Custom",
+            "Custom"
+          ],
+          [
+            "Remix",
+            "Remix"
+          ],
+          [
+            "Repaint",
+            "Repaint"
+          ]
+        ],
+        "value": "Custom",
+        "type": "value",
+        "label": "Generation Mode *",
+        "info": "Custom: Full manual control over caption, lyrics, BPM, key, duration, and all generation parameters. Use this when you know exactly what you want. Switch to Simple if you'd rather describe your idea and let AI fill in the details.",
+        "show_label": true,
+        "container": true,
+        "scale": 10,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "name": "radio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 176,
+      "type": "column",
+      "props": {
+        "scale": 1,
+        "min_width": 80,
+        "variant": "default",
+        "visible": true,
+        "elem_classes": [
+          "icon-btn-wrap"
+        ],
+        "show_progress": false,
+        "preserved_by_key": [],
+        "name": "column"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 177,
+      "type": "uploadbutton",
+      "props": {
+        "label": "\ud83d\udcc2 Load",
+        "variant": "secondary",
+        "visible": true,
+        "size": "lg",
+        "interactive": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "type": "filepath",
+        "file_count": "single",
+        "file_types": [
+          ".json"
+        ],
+        "name": "uploadbutton",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 179,
+      "type": "state",
+      "props": {
+        "time_to_live": null,
+        "delete_callback": "<function default_delete_callback at 0x7a35847d7ce0>",
+        "name": "state",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 180,
+      "type": "textbox",
+      "props": {
+        "value": "Fill the audio semantic mask based on the given conditions:",
+        "type": "text",
+        "lines": 1,
+        "label": "Instruction",
+        "info": "Instruction is automatically generated based on task type.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": false,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 181,
+      "type": "state",
+      "props": {
+        "time_to_live": null,
+        "delete_callback": "<function default_delete_callback at 0x7a35847d7ce0>",
+        "name": "state",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 183,
+      "type": "state",
+      "props": {
+        "time_to_live": null,
+        "delete_callback": "<function default_delete_callback at 0x7a35847d7ce0>",
+        "name": "state",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 184,
+      "type": "group",
+      "props": {
+        "visible": false,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [],
+        "name": "group"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 197,
+      "type": "row",
+      "props": {
+        "variant": "default",
+        "visible": false,
+        "equal_height": true,
+        "show_progress": false,
+        "preserved_by_key": [],
+        "name": "row"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 198,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "Source Audio",
+        "show_label": true,
+        "container": true,
+        "scale": 10,
+        "min_width": 160,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [
+          "download",
+          "share"
+        ],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 200,
+      "type": "button",
+      "props": {
+        "value": "\ud83d\udd0d Analyze",
+        "variant": "secondary",
+        "size": "lg",
+        "link_target": "_self",
+        "visible": true,
+        "interactive": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "button",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 201,
+      "type": "group",
+      "props": {
+        "visible": false,
+        "preserved_by_key": [],
+        "name": "group"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 203,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "woodwinds",
+            "woodwinds"
+          ],
+          [
+            "brass",
+            "brass"
+          ],
+          [
+            "fx",
+            "fx"
+          ],
+          [
+            "synth",
+            "synth"
+          ],
+          [
+            "strings",
+            "strings"
+          ],
+          [
+            "percussion",
+            "percussion"
+          ],
+          [
+            "keyboard",
+            "keyboard"
+          ],
+          [
+            "guitar",
+            "guitar"
+          ],
+          [
+            "bass",
+            "bass"
+          ],
+          [
+            "drums",
+            "drums"
+          ],
+          [
+            "backing_vocals",
+            "backing_vocals"
+          ],
+          [
+            "vocals",
+            "vocals"
+          ]
+        ],
+        "type": "value",
+        "allow_custom_value": false,
+        "filterable": true,
+        "label": "Track Name",
+        "info": "Select track name for lego/extract tasks.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": false,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 204,
+      "type": "group",
+      "props": {
+        "visible": false,
+        "preserved_by_key": [],
+        "name": "group"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 206,
+      "type": "checkboxgroup",
+      "props": {
+        "choices": [
+          [
+            "woodwinds",
+            "woodwinds"
+          ],
+          [
+            "brass",
+            "brass"
+          ],
+          [
+            "fx",
+            "fx"
+          ],
+          [
+            "synth",
+            "synth"
+          ],
+          [
+            "strings",
+            "strings"
+          ],
+          [
+            "percussion",
+            "percussion"
+          ],
+          [
+            "keyboard",
+            "keyboard"
+          ],
+          [
+            "guitar",
+            "guitar"
+          ],
+          [
+            "bass",
+            "bass"
+          ],
+          [
+            "drums",
+            "drums"
+          ],
+          [
+            "backing_vocals",
+            "backing_vocals"
+          ],
+          [
+            "vocals",
+            "vocals"
+          ]
+        ],
+        "value": [],
+        "type": "value",
+        "label": "Track Names",
+        "info": "Select multiple track classes for complete task.",
+        "show_label": true,
+        "show_select_all": false,
+        "container": true,
+        "min_width": 160,
+        "visible": false,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkboxgroup",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 207,
+      "type": "accordion",
+      "props": {
+        "label": "\ud83c\udfbc LM Codes Hints",
+        "open": false,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 210,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 6,
+        "placeholder": "<|audio_code_10695|><|audio_code_54246|>.",
+        "label": "LM Codes Hints",
+        "info": "Paste LM codes hints for text2music generation.",
+        "show_label": true,
+        "container": true,
+        "scale": 6,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 215,
+      "type": "group",
+      "props": {
+        "visible": true,
+        "preserved_by_key": [],
+        "name": "group"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 217,
+      "type": "column",
+      "props": {
+        "scale": 1,
+        "min_width": 200,
+        "variant": "default",
+        "visible": true,
+        "show_progress": false,
+        "preserved_by_key": [],
+        "name": "column"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 224,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "value": 0.0,
+        "step": 0.01,
+        "label": "variance",
+        "info": "0=baseline; 0.05\u20130.15 subtle; 0.5+ strong.",
+        "show_label": true,
+        "container": true,
+        "scale": 2,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 225,
+      "type": "textbox",
+      "props": {
+        "value": "",
+        "type": "text",
+        "lines": 1,
+        "placeholder": "empty=random",
+        "label": "seed",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 230,
+      "type": "checkbox",
+      "props": {
+        "value": false,
+        "label": "Edit",
+        "show_label": true,
+        "container": true,
+        "scale": 8,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 237,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 8,
+        "placeholder": "Describe the ORIGINAL audio.",
+        "label": "source caption",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 238,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 8,
+        "placeholder": "Original lyrics; top-level lyrics is the target.",
+        "label": "source lyrics",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 241,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "value": 0.0,
+        "step": 0.05,
+        "label": "n_min",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 242,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "value": 1.0,
+        "step": 0.05,
+        "label": "n_max",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 243,
+      "type": "slider",
+      "props": {
+        "minimum": 1,
+        "maximum": 8,
+        "value": 1,
+        "step": 1,
+        "label": "n_avg",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 245,
+      "type": "group",
+      "props": {
+        "visible": false,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [],
+        "name": "group"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 247,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "value": 1.0,
+        "step": 0.01,
+        "label": "LM Codes Strength",
+        "info": "What fraction of DiT denoising steps use LM-generated semantic codes as guidance. Higher (0.7\u20131.0) = output closely follows the LM's musical plan. Lower (0.1\u20130.4) = DiT has more creative freedom. 0 = codes ignored entirely. Default 1.0 is a good starting point.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 248,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "value": 0.0,
+        "step": 0.01,
+        "label": "Cover Strength (Melody Retention)",
+        "info": "Controls how much of the original melody is preserved during remix. 0 = no melody retention (pure style transfer from your caption). 0.1\u20130.25 = recommended range with SFT model (restores melody while allowing style changes). 1.0 = maximum melody retention. Higher values keep the tune but may resist style changes \u2014 adjust your caption if needed.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": false,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 249,
+      "type": "checkbox",
+      "props": {
+        "value": false,
+        "label": "no_fsq",
+        "info": "Use source-audio latents directly instead of FSQ-quantized audio codes.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 251,
+      "type": "group",
+      "props": {
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [],
+        "name": "group"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 255,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "Reference Audio",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [
+          "download",
+          "share"
+        ],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 259,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 12,
+        "max_lines": 12,
+        "placeholder": "A peaceful acoustic guitar melody with soft vocals.",
+        "label": "Music Caption",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 264,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 12,
+        "max_lines": 12,
+        "placeholder": "[Verse 1]\\nUnder the starry night\\nI feel so alive.",
+        "label": "Lyrics",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 272,
+      "type": "group",
+      "props": {
+        "visible": false,
+        "preserved_by_key": [],
+        "name": "group"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 274,
+      "type": "html",
+      "props": {
+        "_retryable": false,
+        "_undoable": false,
+        "likeable": false,
+        "streamable": false,
+        "value": "<h5>\ud83c\udfa8 Repainting Controls (seconds)</h5>",
+        "html_template": "${value}",
+        "css_template": "",
+        "js_on_load": "element.addEventListener('click', function() { trigger('click') });",
+        "apply_default_css": true,
+        "show_label": false,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "container": false,
+        "padding": false,
+        "autoscroll": false,
+        "buttons": [],
+        "props": {},
+        "name": "html",
+        "_selectable": false,
+        "component_class_name": "HTML"
+      },
+      "skip_api": false
+    },
+    {
+      "id": 276,
+      "type": "number",
+      "props": {
+        "value": 0.0,
+        "label": "Repainting Start",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "step": 0.1,
+        "name": "number",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 277,
+      "type": "number",
+      "props": {
+        "value": -1,
+        "label": "Repainting End",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "minimum": -1,
+        "step": 0.1,
+        "name": "number",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 280,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "conservative",
+            "conservative"
+          ],
+          [
+            "balanced",
+            "balanced"
+          ],
+          [
+            "aggressive",
+            "aggressive"
+          ]
+        ],
+        "value": "balanced",
+        "type": "value",
+        "allow_custom_value": false,
+        "filterable": true,
+        "label": "Repaint Mode",
+        "info": "conservative=preserve source, aggressive=full regeneration",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 281,
+      "type": "slider",
+      "props": {
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "value": 0.5,
+        "step": 0.05,
+        "label": "Repaint Strength",
+        "info": "0=conservative, 1=aggressive (balanced mode only)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "slider",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 284,
+      "type": "accordion",
+      "props": {
+        "label": "\u2699\ufe0f Optional Parameters",
+        "open": true,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 286,
+      "type": "number",
+      "props": {
+        "label": "BPM (Beats Per Minute)",
+        "info": "Tempo of the song. Slow ballad: 60\u201380. Pop/Rock: 100\u2013130. Dance/EDM: 120\u2013140. Fast punk/metal: 160\u2013200. Leave empty or check 'Auto' to let the model choose based on your caption.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "step": 1,
+        "name": "number",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 287,
+      "type": "textbox",
+      "props": {
+        "value": "",
+        "type": "text",
+        "lines": 1,
+        "placeholder": "e.g. C Major, A Minor, F# Minor",
+        "label": "Key",
+        "info": "Musical key of the song (e.g. 'C Major', 'Am', 'F# Minor'). Major keys sound bright/happy, minor keys sound dark/sad. Leave empty or check 'Auto' to let the model choose.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 288,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "",
+            ""
+          ],
+          [
+            "2",
+            "2"
+          ],
+          [
+            "3",
+            "3"
+          ],
+          [
+            "4",
+            "4"
+          ],
+          [
+            "6",
+            "6"
+          ],
+          [
+            "N/A",
+            "N/A"
+          ]
+        ],
+        "value": "",
+        "type": "value",
+        "allow_custom_value": true,
+        "filterable": true,
+        "label": "Time Signature",
+        "info": "Beats per measure. 4 = 4/4 (most pop/rock/electronic). 3 = 3/4 (waltz feel). 6 = 6/8 (compound, flowing feel). 2 = 2/4 (march feel). Use 'N/A' or Auto to let the model decide.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 289,
+      "type": "dropdown",
+      "props": {
+        "choices": [
+          [
+            "ar",
+            "ar"
+          ],
+          [
+            "az",
+            "az"
+          ],
+          [
+            "bg",
+            "bg"
+          ],
+          [
+            "bn",
+            "bn"
+          ],
+          [
+            "ca",
+            "ca"
+          ],
+          [
+            "cs",
+            "cs"
+          ],
+          [
+            "da",
+            "da"
+          ],
+          [
+            "de",
+            "de"
+          ],
+          [
+            "el",
+            "el"
+          ],
+          [
+            "en",
+            "en"
+          ],
+          [
+            "es",
+            "es"
+          ],
+          [
+            "fa",
+            "fa"
+          ],
+          [
+            "fi",
+            "fi"
+          ],
+          [
+            "fr",
+            "fr"
+          ],
+          [
+            "he",
+            "he"
+          ],
+          [
+            "hi",
+            "hi"
+          ],
+          [
+            "hr",
+            "hr"
+          ],
+          [
+            "ht",
+            "ht"
+          ],
+          [
+            "hu",
+            "hu"
+          ],
+          [
+            "id",
+            "id"
+          ],
+          [
+            "is",
+            "is"
+          ],
+          [
+            "it",
+            "it"
+          ],
+          [
+            "ja",
+            "ja"
+          ],
+          [
+            "ko",
+            "ko"
+          ],
+          [
+            "la",
+            "la"
+          ],
+          [
+            "lt",
+            "lt"
+          ],
+          [
+            "ms",
+            "ms"
+          ],
+          [
+            "ne",
+            "ne"
+          ],
+          [
+            "nl",
+            "nl"
+          ],
+          [
+            "no",
+            "no"
+          ],
+          [
+            "pa",
+            "pa"
+          ],
+          [
+            "pl",
+            "pl"
+          ],
+          [
+            "pt",
+            "pt"
+          ],
+          [
+            "ro",
+            "ro"
+          ],
+          [
+            "ru",
+            "ru"
+          ],
+          [
+            "sa",
+            "sa"
+          ],
+          [
+            "sk",
+            "sk"
+          ],
+          [
+            "sr",
+            "sr"
+          ],
+          [
+            "sv",
+            "sv"
+          ],
+          [
+            "sw",
+            "sw"
+          ],
+          [
+            "ta",
+            "ta"
+          ],
+          [
+            "te",
+            "te"
+          ],
+          [
+            "th",
+            "th"
+          ],
+          [
+            "tl",
+            "tl"
+          ],
+          [
+            "tr",
+            "tr"
+          ],
+          [
+            "uk",
+            "uk"
+          ],
+          [
+            "ur",
+            "ur"
+          ],
+          [
+            "vi",
+            "vi"
+          ],
+          [
+            "yue",
+            "yue"
+          ],
+          [
+            "zh",
+            "zh"
+          ],
+          [
+            "Instrumental / auto",
+            "unknown"
+          ]
+        ],
+        "value": "unknown",
+        "type": "value",
+        "allow_custom_value": true,
+        "filterable": true,
+        "label": "Vocal Language",
+        "info": "Language for generated vocals. Set to match your lyrics language for best results. 'unknown' = let the model decide (good for instrumental or multilingual). 'instrumental' = no vocals.",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "dropdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 292,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "BPM Auto",
+        "show_label": true,
+        "container": false,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "auto-toggle"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 293,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "Key Auto",
+        "show_label": true,
+        "container": false,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "auto-toggle"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 294,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "TimeSig Auto",
+        "show_label": true,
+        "container": false,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "auto-toggle"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 295,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "Language Auto",
+        "show_label": true,
+        "container": false,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "auto-toggle"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 297,
+      "type": "number",
+      "props": {
+        "value": -1,
+        "label": "Audio Duration (seconds)",
+        "info": "Length of the generated audio in seconds. Longer durations need more VRAM and time. -1 = let the model decide based on lyrics/structure. Check 'Auto' for automatic duration. (Max: 600s / 10 min)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "minimum": -1,
+        "maximum": 600.0,
+        "step": 0.1,
+        "name": "number",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 298,
+      "type": "number",
+      "props": {
+        "value": 1,
+        "label": "Batch Size",
+        "info": "How many variations to generate at once. Higher = more options to choose from, but uses more VRAM and takes longer. Generate 2\u20134 to compare and pick the best result. (Max: 1)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "elem_classes": [
+          "has-info-container"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "minimum": 1,
+        "maximum": 1,
+        "step": 1,
+        "name": "number",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 301,
+      "type": "checkbox",
+      "props": {
+        "value": true,
+        "label": "Duration Auto",
+        "show_label": true,
+        "container": false,
+        "min_width": 160,
+        "visible": true,
+        "elem_classes": [
+          "auto-toggle"
+        ],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 304,
+      "type": "row",
+      "props": {
+        "variant": "default",
+        "visible": true,
+        "equal_height": true,
+        "show_progress": false,
+        "preserved_by_key": [],
+        "name": "row"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 306,
+      "type": "checkbox",
+      "props": {
+        "value": false,
+        "label": "Think",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 307,
+      "type": "checkbox",
+      "props": {
+        "value": false,
+        "label": "Auto Score",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 309,
+      "type": "button",
+      "props": {
+        "value": "\ud83c\udfb5 Generate Music",
+        "variant": "primary",
+        "size": "lg",
+        "link_target": "_self",
+        "visible": true,
+        "interactive": true,
+        "elem_id": "acestep-generate-btn",
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "button",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 311,
+      "type": "checkbox",
+      "props": {
+        "value": false,
+        "label": "AutoGen",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 312,
+      "type": "checkbox",
+      "props": {
+        "value": false,
+        "label": "Auto LRC",
+        "show_label": true,
+        "container": true,
+        "scale": 1,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "buttons": [],
+        "name": "checkbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 316,
+      "type": "column",
+      "props": {
+        "scale": 1,
+        "min_width": 320,
+        "variant": "default",
+        "visible": true,
+        "show_progress": false,
+        "preserved_by_key": [],
+        "name": "column"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 319,
+      "type": "state",
+      "props": {
+        "time_to_live": null,
+        "delete_callback": "<function default_delete_callback at 0x7a35847d7ce0>",
+        "name": "state",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 320,
+      "type": "state",
+      "props": {
+        "time_to_live": null,
+        "delete_callback": "<function default_delete_callback at 0x7a35847d7ce0>",
+        "name": "state",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 321,
+      "type": "state",
+      "props": {
+        "time_to_live": null,
+        "delete_callback": "<function default_delete_callback at 0x7a35847d7ce0>",
+        "name": "state",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 322,
+      "type": "state",
+      "props": {
+        "time_to_live": null,
+        "delete_callback": "<function default_delete_callback at 0x7a35847d7ce0>",
+        "name": "state",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 323,
+      "type": "state",
+      "props": {
+        "time_to_live": null,
+        "delete_callback": "<function default_delete_callback at 0x7a35847d7ce0>",
+        "name": "state",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 324,
+      "type": "state",
+      "props": {
+        "time_to_live": null,
+        "delete_callback": "<function default_delete_callback at 0x7a35847d7ce0>",
+        "name": "state",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 328,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "\ud83c\udfb5 Generated Music (Sample 1)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 333,
+      "type": "accordion",
+      "props": {
+        "label": "\ud83d\udcca Score & LRC & LM Codes",
+        "open": false,
+        "visible": true,
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 334,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 4,
+        "label": "LM Codes (Sample 1)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 336,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 6,
+        "max_lines": 6,
+        "label": "Quality Score (Sample 1)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 338,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 8,
+        "max_lines": 8,
+        "label": "Lyrics Timestamps (Sample 1)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 347,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "\ud83c\udfb5 Generated Music (Sample 2)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 352,
+      "type": "accordion",
+      "props": {
+        "label": "\ud83d\udcca Score & LRC & LM Codes",
+        "open": false,
+        "visible": true,
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 353,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 4,
+        "label": "LM Codes (Sample 2)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 355,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 6,
+        "max_lines": 6,
+        "label": "Quality Score (Sample 2)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 357,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 8,
+        "max_lines": 8,
+        "label": "Lyrics Timestamps (Sample 2)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 366,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "\ud83c\udfb5 Generated Music (Sample 3)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 371,
+      "type": "accordion",
+      "props": {
+        "label": "\ud83d\udcca Score & LRC & LM Codes",
+        "open": false,
+        "visible": true,
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 372,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 4,
+        "label": "LM Codes (Sample 3)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 374,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 6,
+        "max_lines": 6,
+        "label": "Quality Score (Sample 3)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 376,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 8,
+        "max_lines": 8,
+        "label": "Lyrics Timestamps (Sample 3)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 385,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "\ud83c\udfb5 Generated Music (Sample 4)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 390,
+      "type": "accordion",
+      "props": {
+        "label": "\ud83d\udcca Score & LRC & LM Codes",
+        "open": false,
+        "visible": true,
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 391,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 4,
+        "label": "LM Codes (Sample 4)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 393,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 6,
+        "max_lines": 6,
+        "label": "Quality Score (Sample 4)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 395,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 8,
+        "max_lines": 8,
+        "label": "Lyrics Timestamps (Sample 4)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 405,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "\ud83c\udfb5 Generated Music (Sample 5)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 410,
+      "type": "accordion",
+      "props": {
+        "label": "\ud83d\udcca Score & LRC & LM Codes",
+        "open": false,
+        "visible": true,
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 411,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 4,
+        "label": "LM Codes (Sample 5)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 413,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 6,
+        "max_lines": 6,
+        "label": "Quality Score (Sample 5)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 415,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 8,
+        "max_lines": 8,
+        "label": "Lyrics Timestamps (Sample 5)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 424,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "\ud83c\udfb5 Generated Music (Sample 6)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 429,
+      "type": "accordion",
+      "props": {
+        "label": "\ud83d\udcca Score & LRC & LM Codes",
+        "open": false,
+        "visible": true,
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 430,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 4,
+        "label": "LM Codes (Sample 6)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 432,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 6,
+        "max_lines": 6,
+        "label": "Quality Score (Sample 6)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 434,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 8,
+        "max_lines": 8,
+        "label": "Lyrics Timestamps (Sample 6)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 443,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "\ud83c\udfb5 Generated Music (Sample 7)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 448,
+      "type": "accordion",
+      "props": {
+        "label": "\ud83d\udcca Score & LRC & LM Codes",
+        "open": false,
+        "visible": true,
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 449,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 4,
+        "label": "LM Codes (Sample 7)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 451,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 6,
+        "max_lines": 6,
+        "label": "Quality Score (Sample 7)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 453,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 8,
+        "max_lines": 8,
+        "label": "Lyrics Timestamps (Sample 7)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 462,
+      "type": "audio",
+      "props": {
+        "streamable": false,
+        "sources": [
+          "upload",
+          "microphone"
+        ],
+        "type": "filepath",
+        "label": "\ud83c\udfb5 Generated Music (Sample 8)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "streaming": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "autoplay": false,
+        "editable": true,
+        "buttons": [],
+        "waveform_options": {
+          "waveform_color": null,
+          "waveform_progress_color": null,
+          "trim_region_color": null,
+          "show_recording_waveform": true,
+          "skip_length": 5,
+          "sample_rate": 44100
+        },
+        "loop": false,
+        "recording": false,
+        "playback_position": 0,
+        "name": "audio",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 467,
+      "type": "accordion",
+      "props": {
+        "label": "\ud83d\udcca Score & LRC & LM Codes",
+        "open": false,
+        "visible": true,
+        "preserved_by_key": [],
+        "name": "accordion"
+      },
+      "skip_api": true
+    },
+    {
+      "id": 468,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 4,
+        "max_lines": 4,
+        "label": "LM Codes (Sample 8)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 470,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 6,
+        "max_lines": 6,
+        "label": "Quality Score (Sample 8)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 472,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 8,
+        "max_lines": 8,
+        "label": "Lyrics Timestamps (Sample 8)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": true,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [
+          "copy"
+        ],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 480,
+      "type": "textbox",
+      "props": {
+        "type": "text",
+        "lines": 1,
+        "label": "Generation Status",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 482,
+      "type": "button",
+      "props": {
+        "value": "\u25c0 Previous",
+        "variant": "secondary",
+        "size": "sm",
+        "link_target": "_self",
+        "visible": true,
+        "interactive": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "scale": 1,
+        "name": "button",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 483,
+      "type": "textbox",
+      "props": {
+        "value": "Batch 1 / 1",
+        "type": "text",
+        "lines": 1,
+        "label": "Current Batch",
+        "show_label": true,
+        "container": true,
+        "scale": 3,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 484,
+      "type": "textbox",
+      "props": {
+        "value": "",
+        "type": "text",
+        "lines": 1,
+        "label": "Next Batch Status",
+        "show_label": true,
+        "container": true,
+        "scale": 3,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "autofocus": false,
+        "autoscroll": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "rtl": false,
+        "buttons": [],
+        "submit_btn": false,
+        "stop_btn": false,
+        "name": "textbox",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 485,
+      "type": "button",
+      "props": {
+        "value": "Next \u25b6",
+        "variant": "primary",
+        "size": "sm",
+        "link_target": "_self",
+        "visible": true,
+        "interactive": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "scale": 1,
+        "name": "button",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 487,
+      "type": "button",
+      "props": {
+        "value": "\u2199\ufe0f Apply These Settings to UI (Restore Batch Parameters)",
+        "variant": "secondary",
+        "size": "sm",
+        "link_target": "_self",
+        "visible": true,
+        "interactive": false,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "name": "button",
+        "_selectable": false
+      },
+      "skip_api": true
+    },
+    {
+      "id": 489,
+      "type": "file",
+      "props": {
+        "file_count": "multiple",
+        "type": "filepath",
+        "label": "\ud83d\udcc1 All Generated Files (Download)",
+        "show_label": true,
+        "container": true,
+        "min_width": 160,
+        "interactive": false,
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "allow_reordering": false,
+        "buttons": [],
+        "name": "file",
+        "_selectable": false
+      },
+      "skip_api": false
+    },
+    {
+      "id": 490,
+      "type": "markdown",
+      "props": {
+        "label": "Generation Details",
+        "show_label": false,
+        "rtl": false,
+        "latex_delimiters": [
+          {
+            "left": "$$",
+            "right": "$$",
+            "display": true
+          }
+        ],
+        "visible": true,
+        "elem_classes": [],
+        "preserved_by_key": [
+          "value"
+        ],
+        "sanitize_html": true,
+        "line_breaks": false,
+        "header_links": false,
+        "container": false,
+        "padding": false,
+        "name": "markdown",
+        "_selectable": false
+      },
+      "skip_api": false
+    }
+  ],
+  "dependencies": [
+    {
+      "id": 54,
+      "targets": [
+        [
+          175,
+          "change"
+        ]
+      ],
+      "inputs": [
+        175,
+        183
+      ],
+      "outputs": [
+        184,
+        251,
+        309,
+        181,
+        284,
+        179,
+        197,
+        272,
+        207,
+        203,
+        206,
+        304,
+        175,
+        316,
+        306,
+        176,
+        177,
+        247,
+        248,
+        259,
+        264,
+        286,
+        287,
+        288,
+        289,
+        297,
+        307,
+        311,
+        312,
+        200,
+        274,
+        276,
+        277,
+        280,
+        281,
+        224,
+        225,
+        183,
+        245,
+        215,
+        201,
+        204,
+        292,
+        293,
+        294,
+        295,
+        301,
+        210,
+        198,
+        217,
+        230
+      ],
+      "backend_fn": true,
+      "js": null,
+      "queue": true,
+      "api_name": "_handle_mode_change",
+      "api_description": null,
+      "scroll_to_output": false,
+      "show_progress": "full",
+      "show_progress_on": null,
+      "batch": false,
+      "max_batch_size": 4,
+      "cancels": [],
+      "types": {
+        "generator": false,
+        "cancel": false
+      },
+      "collects_event_data": false,
+      "trigger_after": null,
+      "trigger_only_on_success": false,
+      "trigger_only_on_failure": false,
+      "trigger_mode": "always_last",
+      "api_visibility": "public",
+      "rendered_in": null,
+      "render_id": null,
+      "connection": "sse",
+      "time_limit": null,
+      "stream_every": 0.5,
+      "event_specific_args": null,
+      "component_prop_inputs": [],
+      "js_implementation": null
+    },
+    {
+      "id": 126,
+      "targets": [
+        [
+          309,
+          "click"
+        ]
+      ],
+      "inputs": [],
+      "outputs": [
+        328,
+        347,
+        366,
+        385,
+        405,
+        424,
+        443,
+        462,
+        489
+      ],
+      "backend_fn": true,
+      "js": null,
+      "queue": true,
+      "api_name": "clear_audio_outputs_for_new_generation",
+      "api_description": null,
+      "scroll_to_output": false,
+      "show_progress": "full",
+      "show_progress_on": null,
+      "batch": false,
+      "max_batch_size": 4,
+      "cancels": [],
+      "types": {
+        "generator": false,
+        "cancel": false
+      },
+      "collects_event_data": false,
+      "trigger_after": null,
+      "trigger_only_on_success": false,
+      "trigger_only_on_failure": false,
+      "trigger_mode": "once",
+      "api_visibility": "public",
+      "rendered_in": null,
+      "render_id": null,
+      "connection": "sse",
+      "time_limit": null,
+      "stream_every": 0.5,
+      "event_specific_args": null,
+      "component_prop_inputs": [],
+      "js_implementation": null
+    },
+    {
+      "id": 127,
+      "targets": [
+        [
+          null,
+          "then"
+        ]
+      ],
+      "inputs": [
+        259,
+        264,
+        286,
+        287,
+        288,
+        289,
+        83,
+        84,
+        116,
+        115,
+        255,
+        297,
+        298,
+        198,
+        210,
+        276,
+        277,
+        180,
+        247,
+        248,
+        179,
+        249,
+        103,
+        110,
+        111,
+        104,
+        85,
+        86,
+        89,
+        90,
+        94,
+        95,
+        99,
+        100,
+        96,
+        107,
+        146,
+        148,
+        149,
+        123,
+        306,
+        124,
+        127,
+        128,
+        131,
+        134,
+        141,
+        135,
+        320,
+        136,
+        140,
+        307,
+        312,
+        153,
+        169,
+        203,
+        206,
+        156,
+        157,
+        160,
+        161,
+        164,
+        165,
+        280,
+        281,
+        224,
+        225,
+        230,
+        237,
+        238,
+        241,
+        242,
+        243,
+        311,
+        321,
+        322,
+        323,
+        324
+      ],
+      "outputs": [
+        328,
+        347,
+        366,
+        385,
+        405,
+        424,
+        443,
+        462,
+        489,
+        490,
+        480,
+        115,
+        336,
+        355,
+        374,
+        393,
+        413,
+        432,
+        451,
+        470,
+        334,
+        353,
+        372,
+        391,
+        411,
+        430,
+        449,
+        468,
+        333,
+        352,
+        371,
+        390,
+        410,
+        429,
+        448,
+        467,
+        338,
+        357,
+        376,
+        395,
+        415,
+        434,
+        453,
+        472,
+        319,
+        320,
+        321,
+        322,
+        323,
+        324,
+        483,
+        482,
+        485,
+        484,
+        487
+      ],
+      "backend_fn": true,
+      "js": null,
+      "queue": true,
+      "api_name": "generation_wrapper",
+      "api_description": null,
+      "scroll_to_output": false,
+      "show_progress": "full",
+      "show_progress_on": null,
+      "batch": false,
+      "max_batch_size": 4,
+      "cancels": [],
+      "types": {
+        "generator": true,
+        "cancel": false
+      },
+      "collects_event_data": false,
+      "trigger_after": 126,
+      "trigger_only_on_success": false,
+      "trigger_only_on_failure": false,
+      "trigger_mode": "once",
+      "api_visibility": "public",
+      "rendered_in": null,
+      "render_id": null,
+      "connection": "sse",
+      "time_limit": null,
+      "stream_every": 0.5,
+      "event_specific_args": null,
+      "component_prop_inputs": [],
+      "js_implementation": null
+    }
+  ]
+}
