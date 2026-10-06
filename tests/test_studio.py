@@ -16,6 +16,8 @@ class StudioTests(unittest.TestCase):
         shutil.copytree(APP/'web',app/'web')
         web.ROOT=app;web.DATA=self.root/'data';web.MUSIC=self.root/'music';web.EPISODES=app/'episodes'
         web.STOP=threading.Event();web.CHILD=None;web.PASSWORD=web.init()
+        from youtube_upload import Uploader
+        web.YOUTUBE=Uploader(web.ROOT,web.DATA,web.EPISODES,web.STOP)
         self.auth='Basic '+base64.b64encode(('admin:'+web.PASSWORD).encode()).decode()
         self.server=web.Server(('127.0.0.1',0),web.Handler)
         self.server_thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.server_thread.start()
@@ -111,6 +113,43 @@ class StudioTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError):self.api('/api/job-action',{'id':first,'action':'retry'})
         self.api('/api/job-action',{'id':first,'action':'retry','confirmed':True})
         self.assertEqual(next(j for j in self.api('/api/state')['jobs'] if j['id']==first)['status'],'queued')
+    def test_full_video_package_and_youtube_api(self):
+        from test_youtube import FakeGoogle
+        import youtube_upload as yt
+        shutil.copytree(APP/'scenes',web.ROOT/'scenes')
+        fake=FakeGoogle()
+        yt.save_json(web.YOUTUBE.folder/'token.json',{'client_id':'FAKE_CLIENT','client_secret':'FAKE_SECRET',
+            'access_token':'FAKE_ACCESS','refresh_token':'FAKE_REFRESH','expires_at':time.time()+3600,
+            'channel':{'id':fake.channel_id,'title':'Test channel'}})
+        web.YOUTUBE.credentials=yt.Credentials(web.YOUTUBE.folder,fake)
+        one=self.track(220);two=self.track(330)
+        ident=self.api('/api/jobs',{'mode':'library','selected':[one,two],'minutes':.5,'crossfade':3,'width':640,'time_of_day':'morning'})['id']
+        self.worker=threading.Thread(target=web.worker,daemon=True);self.worker.start()
+        deadline=time.time()+120
+        while time.time()<deadline:
+            job=next(j for j in self.api('/api/state')['jobs'] if j['id']==ident)
+            if job['status'] in ('succeeded','failed'):break
+            time.sleep(.2)
+        self.assertEqual(job['status'],'succeeded',job.get('error'))
+        episode=web.EPISODES/job['name']
+        duration=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=nw=1:nk=1',str(episode/'episode.mp4')],text=True))
+        self.assertAlmostEqual(duration,30,places=1)
+        self.assertTrue((episode/'publication.json').exists())
+        self.api('/api/publication',{'name':job['name'],'edits':{'title':'Reviewed integration video','description':'Full pipeline test'}})
+        payload={'name':job['name'],'channel_id':fake.channel_id,'made_for_kids':False,'synthetic':True,'confirmed':True}
+        with self.assertRaises(urllib.error.HTTPError):self.request('/api/youtube/upload',payload,auth=False)
+        with self.assertRaises(urllib.error.HTTPError):self.request('/api/youtube/upload',payload,extra={'Origin':'http://evil.invalid'})
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/youtube/upload',{**payload,'confirmed':False})
+        upload=self.api('/api/youtube/upload',payload)['id']
+        web.YOUTUBE.run_one(upload)
+        self.assertEqual(self.api('/api/youtube')['uploads'][0]['status'],'done')
+        self.assertEqual(fake.metadata['snippet']['title'],'Reviewed integration video')
+        self.assertEqual(bytes(fake.received),(episode/'episode.mp4').read_bytes())
+        self.assertEqual(self.api('/api/youtube/upload',payload)['id'],upload)
+        self.assertEqual(fake.inserts,1)
+        for path in ('/media/episode/'+job['name']+'/token.json','/media/episode/../../web_data/youtube/token.json'):
+            with self.assertRaises(urllib.error.HTTPError):self.request(path)
+
     def test_real_worker_builds_audio_from_library(self):
         one=self.track(220);two=self.track(330)
         self.api('/api/preference',{'sha':one,'favorite':True,'excluded':False})

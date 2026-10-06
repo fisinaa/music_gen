@@ -16,7 +16,7 @@ for p in files:
  if target.exists() and target.read_bytes()!=p.read_bytes():
   saved=backup/p.relative_to(source);saved.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(target,saved)
  target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(p,target)
-for name in ['lofi','setup.sh','run_ace.sh','setup_web.sh','run_web.sh']:(dest/name).chmod(0o755)
+for name in ['lofi','setup.sh','run_ace.sh','setup_web.sh','run_web.sh','connect_youtube.sh']:(dest/name).chmod(0o755)
 print('Installed:',dest)
 if backup.exists():print('Changed code backup:',backup)
 PY
