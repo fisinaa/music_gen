@@ -1,0 +1,92 @@
+"""Integration tests use a temporary studio and synthetic WAVs; no ACE-Step request."""
+import base64, concurrent.futures, importlib, json, math, os, shutil, struct, subprocess, sys
+import tempfile, threading, time, unittest, urllib.request, urllib.error, wave
+from pathlib import Path
+APP=Path(__file__).resolve().parents[1]/'lofi_auto'
+sys.path.insert(0,str(APP))
+import web_server as web
+from music_library import export_track
+
+class StudioTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)
+        app=self.root/'app';app.mkdir()
+        for p in APP.glob('*.py'):shutil.copy2(p,app/p.name)
+        shutil.copy2(APP/'prompt_templates.json',app/'prompt_templates.json')
+        shutil.copytree(APP/'web',app/'web')
+        web.ROOT=app;web.DATA=self.root/'data';web.MUSIC=self.root/'music';web.EPISODES=app/'episodes'
+        web.STOP=threading.Event();web.CHILD=None;web.PASSWORD=web.init()
+        self.auth='Basic '+base64.b64encode(('admin:'+web.PASSWORD).encode()).decode()
+        self.server=web.Server(('127.0.0.1',0),web.Handler)
+        self.server_thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.server_thread.start()
+        self.url='http://127.0.0.1:'+str(self.server.server_port)
+        self.worker=None
+    def tearDown(self):
+        web.STOP.set()
+        if self.worker:self.worker.join(15)
+        self.server.shutdown();self.server.server_close();self.server_thread.join()
+        self.tmp.cleanup()
+    def request(self,path,p=None,auth=True,extra=None):
+        headers={'Authorization':self.auth} if auth else {}
+        if p is not None:headers['Content-Type']='application/json'
+        headers.update(extra or {})
+        r=urllib.request.Request(self.url+path,data=json.dumps(p).encode() if p is not None else None,headers=headers)
+        with urllib.request.urlopen(r,timeout=10) as f:return f.status,f.read(),dict(f.headers)
+    def api(self,path,p=None):return json.loads(self.request(path,p)[1])
+    def track(self,freq=220,seconds=18):
+        path=self.root/f'{freq}.wav';frames=bytearray()
+        for n in range(seconds*48000):
+            value=int(5000*math.sin(n*math.tau*freq/48000)*(0.8+0.2*math.sin(n/48000)))
+            frames+=struct.pack('<hh',value,value)
+        with wave.open(str(path),'wb') as f:f.setnchannels(2);f.setsampwidth(2);f.setframerate(48000);f.writeframes(frames)
+        export_track(path,web.MUSIC,{'seed':freq,'duration_seconds':seconds})
+        return web.digest(path)
+    def test_long_queue_accounts_for_crossfade(self):
+        import pipeline
+        path=self.root/'jobs.json'
+        pipeline.make_jobs(path,10800,track_min=30,track_max=30,crossfade=12)
+        jobs=json.loads(path.read_text())
+        self.assertGreaterEqual(sum(j['duration_seconds']-12 for j in jobs),10800)
+
+    def test_auth_validation_and_range(self):
+        with self.assertRaises(urllib.error.HTTPError) as error:self.request('/api/state',auth=False)
+        self.assertEqual(error.exception.code,401)
+        with self.assertRaises(urllib.error.HTTPError) as error:self.api('/api/jobs',{'minutes':-5})
+        self.assertEqual(error.exception.code,400)
+        with self.assertRaises(urllib.error.HTTPError):self.request('/api/queue',{'paused':True},extra={'Origin':'http://evil.invalid'})
+        sha=self.track(seconds=1)
+        code,body,headers=self.request('/media/music/'+sha,extra={'Range':'bytes=0-31'})
+        self.assertEqual(code,206);self.assertEqual(len(body),32);self.assertEqual(body[:4],b'RIFF')
+        with self.assertRaises(urllib.error.HTTPError):self.request('/media/episode/../config.env')
+        self.assertEqual(self.request('/')[0],200)
+    def test_persistence_pause_cancel_claim_and_recovery(self):
+        self.api('/api/queue',{'paused':True})
+        first=self.api('/api/jobs',{'title':'First'})['id'];second=self.api('/api/jobs',{'title':'Second'})['id']
+        self.assertIsNone(web.claim())
+        self.api('/api/job-action',{'id':second,'action':'cancel'})
+        self.api('/api/queue',{'paused':False})
+        with concurrent.futures.ThreadPoolExecutor(2) as pool:claimed=list(pool.map(lambda _:web.claim(),range(2)))
+        self.assertEqual(sum(r is not None for r in claimed),1)
+        web.init();state=self.api('/api/state')
+        self.assertTrue(state['paused']);self.assertEqual(next(j for j in state['jobs'] if j['id']==first)['status'],'interrupted')
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/job-action',{'id':first,'action':'retry'})
+        self.api('/api/job-action',{'id':first,'action':'retry','confirmed':True})
+        self.assertEqual(next(j for j in self.api('/api/state')['jobs'] if j['id']==first)['status'],'queued')
+    def test_real_worker_builds_audio_from_library(self):
+        one=self.track(220);two=self.track(330)
+        self.api('/api/preference',{'sha':one,'favorite':True,'excluded':False})
+        self.assertTrue(next(t for t in self.api('/api/music') if t['sha']==one)['favorite'])
+        id=self.api('/api/jobs',{'mode':'library','selected':[one,two],'minutes':.5,'crossfade':3,'audio_only':True,'title':'Real worker test'})['id']
+        self.worker=threading.Thread(target=web.worker,daemon=True);self.worker.start()
+        deadline=time.time()+60
+        while time.time()<deadline:
+            job=next(j for j in self.api('/api/state')['jobs'] if j['id']==id)
+            if job['status'] in ('succeeded','failed'):break
+            time.sleep(.1)
+        self.assertEqual(job['status'],'succeeded',job.get('error'))
+        path=web.EPISODES/job['name']/'mix.wav'
+        with wave.open(str(path)) as f:self.assertAlmostEqual(f.getnframes()/f.getframerate(),30,places=1)
+        self.assertFalse((path.parent/'episode.mp4').exists())
+        self.assertEqual(self.api('/api/state')['episodes'][0]['title'],'Real worker test')
+
+if __name__=='__main__':unittest.main()

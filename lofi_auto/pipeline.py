@@ -5,6 +5,7 @@ import shutil, subprocess, sys, time
 from pathlib import Path
 from urllib.request import urlopen
 import numpy as np
+from presets import STYLES, MOODS, SCENES, templates
 
 ROOT = Path(__file__).resolve().parent
 VERSION = '1.0.0'
@@ -215,26 +216,27 @@ def make_loop(index, dest, length, width):
         raise
     return tmp
 
-def make_video(work, cache, target, width, loop_seconds, audio):
+def make_video(work, cache, target, width, loop_seconds, audio, time_of_day="cycle"):
     scenes=sorted((ROOT/'scenes').glob('*.png'))
     if len(scenes)!=5: raise RuntimeError('Expected five scenes')
     loops=[]
-    for i,p in enumerate(scenes):
+    for i in SCENES[time_of_day]["indices"]:
+        p=scenes[i]
         key=fingerprint([VERSION,sha(p),sha(ROOT/'scene.py'),width,loop_seconds,FPS])
         dest=cache/f'loop_{i}_{key[:16]}.mp4'
         if not finished(dest,key):
             print(f'ANIMATE scene {i+1}/5 (cached for future episodes)',flush=True)
             tmp=make_loop(i,dest,loop_seconds,width);commit(tmp,dest,key,loop_seconds)
         loops.append(dest)
-    parts=[]; segment=target/5; transition=min(3,segment/4)
+    parts=[]; segment=target/len(loops); transition=min(3,segment/4)
     for i,p in enumerate(loops):
         dest=work/f'video_{i}.mp4'
-        key=fingerprint([VERSION,sha(p),sha(loops[(i+1)%5]),segment,transition,width,'phase-trim'])
+        key=fingerprint([VERSION,sha(p),sha(loops[(i+1)%len(loops)]),segment,transition,width,'phase-trim'])
         if not finished(dest,key):
-            print(f'VIDEO scene {i+1}/5: {segment:.1f}s',flush=True)
+            print(f'VIDEO scene {i+1}/{len(loops)}: {segment:.1f}s',flush=True)
             args=['-stream_loop','-1','-i',p]
             phase=transition if i else 0
-            if i<4:
+            if i<len(loops)-1:
                 args+=['-stream_loop','-1','-i',loops[i+1],'-filter_complex',
                     f'[0:v]trim=start={phase},settb=AVTB,setpts=PTS-STARTPTS[a];[1:v]settb=AVTB,setpts=PTS-STARTPTS[b];'
                     f'[a][b]xfade=transition=fade:duration={transition}:offset={segment-transition},format=yuv420p[v]',
@@ -283,14 +285,14 @@ def ensure_server(url):
         print('  waiting for ACE-Step...',flush=True);time.sleep(10)
     raise RuntimeError('ACE-Step startup timeout; inspect journalctl --user -u lofi-ace')
 
-def make_jobs(path, target):
+def make_jobs(path, target, style="morning", mood="calm", bpm=None, custom_prompt="", track_min=180, track_max=240, crossfade=6):
     if path.exists(): return
-    templates=read(ROOT/'prompt_templates.json')[:6]; rng=random.Random(os.urandom(32)); jobs=[]; usable=0
+    choices=templates(read(ROOT/'prompt_templates.json'),style,mood,bpm,custom_prompt); rng=random.Random(os.urandom(32)); jobs=[]; usable=0
     # A spare track accommodates trimming and occasional short outputs.
     while usable<target+240:
-        j=dict(templates[len(jobs)%len(templates)]); j.update(number=len(jobs)+1,
-            seed=rng.randrange(1,2**31),duration_seconds=rng.randint(180,240))
-        jobs.append(j);usable+=j['duration_seconds']-6
+        j=dict(choices[len(jobs)%len(choices)]); j.update(number=len(jobs)+1,
+            seed=rng.randrange(1,2**31),duration_seconds=rng.randint(track_min,track_max))
+        jobs.append(j);usable+=j['duration_seconds']-crossfade
     write(path,jobs)
 
 def main():
@@ -299,6 +301,14 @@ def main():
     ap.add_argument('--tracks',type=Path,help='Existing queue run or folder of 48 kHz stereo WAVs (build)')
     ap.add_argument('--name',help='Episode folder name, e.g. cafe_day_001')
     ap.add_argument('--music-dir',type=Path,default=Path(os.environ.get('LOFI_MUSIC_DIR',str(ROOT/'music'))))
+    ap.add_argument('--style',choices=list(STYLES),default='morning')
+    ap.add_argument('--mood',choices=list(MOODS),default='calm')
+    ap.add_argument('--time-of-day',choices=list(SCENES),default='cycle')
+    ap.add_argument('--bpm',type=int)
+    ap.add_argument('--custom-prompt',default='')
+    ap.add_argument('--track-min',type=int,default=180)
+    ap.add_argument('--track-max',type=int,default=240)
+    ap.add_argument('--audio-only',action='store_true')
     ap.add_argument('--minutes',type=float,default=30)
     ap.add_argument('--output',type=Path,default=ROOT/'episodes')
     ap.add_argument('--url',default='http://127.0.0.1:7860')
@@ -309,6 +319,9 @@ def main():
     ap.add_argument('--retry-interrupted',action='store_true')
     a=ap.parse_args()
     if a.command!='collect' and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,79}',a.name or ''): ap.error('Use letters, digits, _ or - in --name')
+    if a.bpm is not None and not 40<=a.bpm<=180: ap.error('BPM must be 40..180')
+    if not 30<=a.track_min<=a.track_max<=300: ap.error('Track durations must be 30..300, min <= max')
+    if len(a.custom_prompt)>2000: ap.error('Custom prompt too long')
     if not .5<=a.minutes<=180: ap.error('--minutes must be 0.5..180')
     if not 1<=a.crossfade<=12: ap.error('--crossfade must be 1..12 seconds')
     if not 4<=a.loop_seconds<=60: ap.error('--loop-seconds must be 4..60')
@@ -339,6 +352,10 @@ def main():
     source=a.tracks.expanduser().resolve() if a.tracks else episode/'tracks'
     settings={'version':VERSION,'command':a.command,'source':str(source),'seconds':target,
               'crossfade':a.crossfade,'width':a.width,'loop_seconds':a.loop_seconds,'url':a.url}
+    extras={'style':(a.style,'morning'),'mood':(a.mood,'calm'),'time_of_day':(a.time_of_day,'cycle'),
+            'bpm':(a.bpm,None),'custom_prompt':(a.custom_prompt,''),'track_min':(a.track_min,180),
+            'track_max':(a.track_max,240),'audio_only':(a.audio_only,False)}
+    settings.update({k:v for k,(v,default) in extras.items() if v!=default})
     settings_file=episode/'settings.json'
     if settings_file.exists() and read(settings_file)!=settings:
         raise RuntimeError('Settings changed. Use a new --name; existing episode was not modified')
@@ -347,7 +364,7 @@ def main():
     try:
         if a.command=='create':
             write(state,{'stage':'generation','status':'running'})
-            jobs=episode/'jobs.json';make_jobs(jobs,target);ensure_server(a.url)
+            jobs=episode/'jobs.json';make_jobs(jobs,target,a.style,a.mood,a.bpm,a.custom_prompt,a.track_min,a.track_max,a.crossfade);ensure_server(a.url)
             args=[sys.executable,ROOT/'lofi_queue.py','run','--url',a.url,'--jobs',jobs,'--output',source,'--music-dir',a.music_dir.expanduser().resolve()]
             if a.retry_failed: args.append('--retry-failed')
             if a.retry_interrupted: args.append('--retry-interrupted')
@@ -361,8 +378,11 @@ def main():
             listing.append(f'{stamp} {t.get("title",f"Track {i+1:02}")} — seed {t["job"].get("seed","unknown")}')
         (episode/'tracklist.txt').write_text('\n'.join(listing)+'\n')
         audio=make_audio(tracks,work,target,a.crossfade)
+        if a.audio_only:
+            write(state,{'stage':'complete','status':'done','audio':str(audio),'duration_seconds':target,'finished':time.time()})
+            print(f'DONE: {audio}',flush=True);return
         write(state,{'stage':'video','status':'running'})
-        video=make_video(work,cache,target,a.width,a.loop_seconds,audio)
+        video=make_video(work,cache,target,a.width,a.loop_seconds,audio,a.time_of_day)
         write(state,{'stage':'complete','status':'done','video':str(video),'audio':str(audio),
                      'duration_seconds':target,'finished':time.time()})
         print(f'\nDONE: {video}\nAUDIO: {audio}\nTRACKLIST: {episode/"tracklist.txt"}',flush=True)

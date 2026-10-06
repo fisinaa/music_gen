@@ -167,3 +167,23 @@ cd ~/lofi_auto
 повторный запуск без пересборки, отказ при тишине и нехватке материала.
 Живой API вашей VM из среды сборки недоступен; здесь используется прежний
 адаптер очереди v1.1 с проверкой Gradio API до отправки задания.
+
+## Веб-студия и новые CLI-параметры
+
+После установки из Git: `bash ~/lofi_auto/setup_web.sh`. Адрес: `http://VM-IP:7861`,
+логин admin, пароль в `~/lofi_auto/web_data/password`. Инструкция в репозитории:
+`docs/WEB_STUDIO.md`.
+
+Пример выпуска без смены времени суток:
+
+```bash
+./lofi create --name rainy_morning_02 --minutes 30 \
+  --style morning --mood warm --time-of-day morning
+```
+
+Новые стили: morning, lofi, chillout, lounge, ambient. Время суток: cycle, morning,
+late_morning, day, sunset, evening. `--audio-only` создаёт только сведённый WAV.
+`--track-min` / `--track-max` задают диапазон длительности (30–300 секунд),
+`--bpm` — темп, `--custom-prompt` — дополнение к описанию. Новые стили требуют
+прослушивания; Morning ранее проверен. Старые команды и продолжение старых
+выпусков с настройками по умолчанию поддерживаются.
