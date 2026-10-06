@@ -310,12 +310,12 @@ class Handler(BaseHTTPRequestHandler):
             elif path=='/api/job-action':
                 action(p.get('id'),p.get('action'),p.get('confirmed'));self.send_json({'ok':True})
             elif path=='/api/youtube/upload':
-                if p.get('confirmed') is not True:raise ValueError('Подтверди загрузку приватного видео')
-                ident=YOUTUBE.enqueue(p.get('name'),p.get('channel_id'),p.get('made_for_kids'),p.get('synthetic'))
+                if p.get('confirmed') is not True:raise ValueError('Подтверди загрузку видео с выбранным доступом')
+                ident=YOUTUBE.enqueue(p.get('name'),p.get('channel_id'),p.get('made_for_kids'),p.get('synthetic'),privacy=p.get('privacy','private'))
                 self.send_json({'id':ident},201)
             elif path=='/api/youtube/reupload':
-                if p.get('confirmed') is not True:raise ValueError('Подтверди создание нового приватного видео')
-                ident=YOUTUBE.reupload(p.get('id'),p.get('channel_id'))
+                if p.get('confirmed') is not True:raise ValueError('Подтверди создание нового видео с выбранным доступом')
+                ident=YOUTUBE.reupload(p.get('id'),p.get('channel_id'),privacy=p.get('privacy'))
                 self.send_json({'id':ident},201)
             elif path=='/api/youtube/action':
                 YOUTUBE.action(p.get('id'),p.get('action'));self.send_json({'ok':True})

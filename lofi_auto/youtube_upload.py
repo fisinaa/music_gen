@@ -1,4 +1,4 @@
-"""Private YouTube uploads with durable resumable sessions. No third-party SDK."""
+"""YouTube uploads with selectable visibility with durable resumable sessions. No third-party SDK."""
 import contextlib
 import fcntl
 import hashlib
@@ -193,6 +193,8 @@ class Uploader:
                 names = 'id,episode,channel_id,video_sha,size,payload,status,session,video_id,offset,error,created,updated'
                 c.execute(f'INSERT INTO uploads({names}) SELECT {names} FROM uploads_legacy')
                 c.execute('DROP TABLE uploads_legacy')
+            if 'actual_privacy' not in [r['name'] for r in c.execute('PRAGMA table_info(uploads)')]:
+                c.execute('ALTER TABLE uploads ADD COLUMN actual_privacy TEXT')
             c.execute('CREATE INDEX IF NOT EXISTS uploads_content ON uploads(channel_id,video_sha,created)')
         os.chmod(self.folder / 'uploads.sqlite', 0o600)
 
@@ -209,7 +211,9 @@ class Uploader:
             raise ValueError('Выпуск не найден')
         return path
 
-    def enqueue(self, name, channel_id, made_for_kids, synthetic, repeat_of=None):
+    def enqueue(self, name, channel_id, made_for_kids, synthetic, repeat_of=None, privacy="private"):
+        if privacy not in ("private", "unlisted", "public"):
+            raise ValueError("Выбери доступ: ограниченный, по ссылке или открытый")
         if type(made_for_kids) is not bool or type(synthetic) is not bool:
             raise ValueError('Укажи аудиторию и наличие синтетического контента')
         channel = self.credentials.status().get('channel')
@@ -233,7 +237,7 @@ class Uploader:
             raise ValueError('MP4 изменился во время проверки')
         payload = {'snippet': {'title': package['title'], 'description': package['description'],
                               'categoryId': '10', 'defaultLanguage': 'en'},
-                   'status': {'privacyStatus': 'private', 'selfDeclaredMadeForKids': made_for_kids,
+                   'status': {'privacyStatus': privacy, 'selfDeclaredMadeForKids': made_for_kids,
                               'containsSyntheticMedia': synthetic}}
         with self.db() as c:
             c.execute('BEGIN IMMEDIATE')
@@ -241,8 +245,10 @@ class Uploader:
                 parent = c.execute('SELECT * FROM uploads WHERE id=?', (repeat_of,)).fetchone()
                 if not parent or parent['channel_id'] != channel_id or parent['video_sha'] != sha or parent['episode'] != name:
                     raise ValueError('Исходная загрузка не соответствует выпуску или каналу')
-                child = c.execute('SELECT id FROM uploads WHERE repeat_of=?', (repeat_of,)).fetchone()
+                child = c.execute('SELECT id,payload FROM uploads WHERE repeat_of=?', (repeat_of,)).fetchone()
                 if child:
+                    if json.loads(child['payload'])['status']['privacyStatus'] != privacy:
+                        raise ValueError('Повтор уже создан с другим доступом; используй его запись')
                     return child['id']  # Retried HTTP request / double click: same new attempt.
                 if parent['status'] not in ('done','failed','thumbnail_failed','needs_review','cancelled'):
                     raise ValueError('Дождись завершения текущей загрузки')
@@ -250,8 +256,10 @@ class Uploader:
                 if active:
                     raise ValueError('Этот выпуск уже стоит в очереди или загружается')
             else:
-                old = c.execute('SELECT id FROM uploads WHERE channel_id=? AND video_sha=? ORDER BY created DESC,id DESC LIMIT 1', (channel_id, sha)).fetchone()
+                old = c.execute('SELECT id,payload FROM uploads WHERE channel_id=? AND video_sha=? ORDER BY created DESC,id DESC LIMIT 1', (channel_id, sha)).fetchone()
                 if old:
+                    if json.loads(old['payload'])['status']['privacyStatus'] != privacy:
+                        raise ValueError('Этот выпуск уже отправлялся с другим доступом. Выбери «Загрузить заново» во вкладке YouTube.')
                     return old['id']
             ident = uuid.uuid4().hex
             tmp = self.folder / (ident + '.jpg.tmp')
@@ -262,18 +270,24 @@ class Uploader:
                       (ident, name, channel_id, sha, before.st_size, json.dumps(payload), 'queued', time.time(), time.time(), repeat_of))
             return ident
 
-    def reupload(self, ident, channel_id):
+    def reupload(self, ident, channel_id, privacy=None):
         row = self.get(ident)
         if row['channel_id'] != channel_id:
             raise ValueError('Повторная загрузка должна идти на исходный канал')
         status = json.loads(row['payload'])['status']
         return self.enqueue(row['episode'], channel_id, status['selfDeclaredMadeForKids'],
-                            status['containsSyntheticMedia'], repeat_of=ident)
+                            status['containsSyntheticMedia'], repeat_of=ident,
+                            privacy=status['privacyStatus'] if privacy is None else privacy)
 
     def public(self):
         with self.db() as c:
-            rows = c.execute('SELECT id,episode,channel_id,size,offset,status,video_id,error,created,updated,repeat_of,EXISTS(SELECT 1 FROM uploads child WHERE child.repeat_of=uploads.id) AS has_repeat FROM uploads ORDER BY created DESC LIMIT 100').fetchall()
-        return {'account': self.credentials.status(), 'uploads': [dict(r) for r in rows]}
+            rows = c.execute('SELECT id,episode,channel_id,size,offset,status,video_id,error,created,updated,repeat_of,payload,actual_privacy,EXISTS(SELECT 1 FROM uploads child WHERE child.repeat_of=uploads.id) AS has_repeat FROM uploads ORDER BY created DESC LIMIT 100').fetchall()
+        uploads=[]
+        for row in rows:
+            item=dict(row)
+            item['privacy']=json.loads(item.pop('payload'))['status']['privacyStatus']
+            uploads.append(item)
+        return {'account': self.credentials.status(), 'uploads': uploads}
 
     def get(self, ident):
         with self.db() as c:
@@ -304,10 +318,13 @@ class Uploader:
 
     def acknowledge(self, row, code, headers, body):
         if code in (200, 201):
-            video_id = decoded(body).get('id', '')
+            response = decoded(body)
+            video_id = response.get('id', '')
             if not re.fullmatch(r'[A-Za-z0-9_-]{11}', video_id):
                 raise ReviewRequired('Ответ об окончании без ID видео. Проверь YouTube Studio; новая загрузка не начата.')
-            self.update(row['id'], video_id=video_id, offset=row['size'], status='thumbnail', error=None)
+            actual=response.get('status',{}).get('privacyStatus')
+            self.update(row['id'], video_id=video_id, offset=row['size'], status='thumbnail', error=None,
+                        actual_privacy=actual if actual in ('private','unlisted','public') else None)
             return row['size'], video_id
         if code == 308:
             value = headers.get('range')

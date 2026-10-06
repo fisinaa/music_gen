@@ -31,6 +31,7 @@ class FakeGoogle:
         self.received = bytearray()
         self.total = None
         self.metadata = None
+        self.response_privacy = None
         self.fail_final_once = False
         self.fail_thumbnail = False
         self.expired = False
@@ -79,7 +80,7 @@ class FakeGoogle:
                 if self.fail_final_once:
                     self.fail_final_once = False
                     raise yt.Retryable('test accepted final chunk, response lost')
-                return 201, {}, json.dumps({'id':self.video_id}).encode()
+                return 201, {}, json.dumps({'id':self.video_id,'status':{'privacyStatus':self.response_privacy or self.metadata['status']['privacyStatus']}}).encode()
             return 308, ({'Range':f'bytes=0-{len(self.received)-1}'} if self.received else {}), b''
         if '/thumbnails/set?' in url:
             self.thumbnail_calls += 1
@@ -136,6 +137,39 @@ class UploadTests(unittest.TestCase):
         for secret in ('FAKE_SECRET','FAKE_REFRESH','FAKE_ACCESS','FAKE_SESSION'):
             self.assertNotIn(secret, public)
         self.assertEqual((self.folder/'token.json').stat().st_mode & 0o777, 0o600)
+
+    def test_visibility_values_sent_and_reported(self):
+        for privacy in ('public','unlisted','private'):
+            with self.subTest(privacy=privacy):
+                if privacy=='public':
+                    ident=self.uploader.enqueue('test_episode',self.fake.channel_id,False,True,privacy=privacy)
+                else:
+                    ident=self.uploader.reupload(ident,self.fake.channel_id,privacy=privacy)
+                self.uploader.run_one(ident)
+                self.assertEqual(self.uploader.get(ident)['status'],'done')
+                self.assertEqual(self.fake.metadata['status']['privacyStatus'],privacy)
+                item=next(r for r in self.uploader.public()['uploads'] if r['id']==ident)
+                self.assertEqual(item['privacy'],privacy)
+                self.assertEqual(item['actual_privacy'],privacy)
+
+    def test_visibility_restriction_is_visible(self):
+        self.fake.response_privacy='private'
+        ident=self.uploader.enqueue('test_episode',self.fake.channel_id,False,True,privacy='public')
+        self.uploader.run_one(ident)
+        item=self.uploader.public()['uploads'][0]
+        self.assertEqual(item['privacy'],'public')
+        self.assertEqual(item['actual_privacy'],'private')
+
+    def test_invalid_visibility_and_dedup_mismatch(self):
+        for invalid in ('friends','',None,[],True):
+            with self.assertRaises(ValueError):
+                self.uploader.enqueue('test_episode',self.fake.channel_id,False,True,privacy=invalid)
+        original=self.enqueue();self.uploader.run_one(original)
+        with self.assertRaises(ValueError):
+            self.uploader.enqueue('test_episode',self.fake.channel_id,False,True,privacy='public')
+        new=self.uploader.reupload(original,self.fake.channel_id,privacy='public')
+        with self.assertRaises(ValueError):self.uploader.reupload(original,self.fake.channel_id,privacy='unlisted')
+        self.assertEqual(self.uploader.reupload(original,self.fake.channel_id,privacy='public'),new)
 
     def test_reupload_new_video_current_metadata_keeps_history(self):
         original=self.enqueue();self.uploader.run_one(original)
