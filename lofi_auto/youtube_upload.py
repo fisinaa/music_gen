@@ -179,11 +179,21 @@ class Uploader:
         os.chmod(self.folder, 0o700)
         with self.db() as c:
             c.execute('PRAGMA journal_mode=WAL')
+            c.execute('BEGIN IMMEDIATE')
+            columns = [r['name'] for r in c.execute('PRAGMA table_info(uploads)')]
+            legacy = bool(columns) and 'repeat_of' not in columns
+            if legacy:
+                c.execute('ALTER TABLE uploads RENAME TO uploads_legacy')
             c.execute('''CREATE TABLE IF NOT EXISTS uploads(
                 id TEXT PRIMARY KEY, episode TEXT, channel_id TEXT, video_sha TEXT,
                 size INTEGER, payload TEXT, status TEXT, session TEXT, video_id TEXT,
                 offset INTEGER DEFAULT 0, error TEXT, created REAL, updated REAL,
-                UNIQUE(channel_id,video_sha))''')
+                repeat_of TEXT UNIQUE)''')
+            if legacy:
+                names = 'id,episode,channel_id,video_sha,size,payload,status,session,video_id,offset,error,created,updated'
+                c.execute(f'INSERT INTO uploads({names}) SELECT {names} FROM uploads_legacy')
+                c.execute('DROP TABLE uploads_legacy')
+            c.execute('CREATE INDEX IF NOT EXISTS uploads_content ON uploads(channel_id,video_sha,created)')
         os.chmod(self.folder / 'uploads.sqlite', 0o600)
 
     def db(self):
@@ -199,7 +209,7 @@ class Uploader:
             raise ValueError('Выпуск не найден')
         return path
 
-    def enqueue(self, name, channel_id, made_for_kids, synthetic):
+    def enqueue(self, name, channel_id, made_for_kids, synthetic, repeat_of=None):
         if type(made_for_kids) is not bool or type(synthetic) is not bool:
             raise ValueError('Укажи аудиторию и наличие синтетического контента')
         channel = self.credentials.status().get('channel')
@@ -227,21 +237,42 @@ class Uploader:
                               'containsSyntheticMedia': synthetic}}
         with self.db() as c:
             c.execute('BEGIN IMMEDIATE')
-            old = c.execute('SELECT id FROM uploads WHERE channel_id=? AND video_sha=?', (channel_id, sha)).fetchone()
-            if old:
-                return old['id']
+            if repeat_of is not None:
+                parent = c.execute('SELECT * FROM uploads WHERE id=?', (repeat_of,)).fetchone()
+                if not parent or parent['channel_id'] != channel_id or parent['video_sha'] != sha or parent['episode'] != name:
+                    raise ValueError('Исходная загрузка не соответствует выпуску или каналу')
+                child = c.execute('SELECT id FROM uploads WHERE repeat_of=?', (repeat_of,)).fetchone()
+                if child:
+                    return child['id']  # Retried HTTP request / double click: same new attempt.
+                if parent['status'] not in ('done','failed','thumbnail_failed','needs_review','cancelled'):
+                    raise ValueError('Дождись завершения текущей загрузки')
+                active = c.execute("SELECT id FROM uploads WHERE channel_id=? AND video_sha=? AND status IN ('queued','initiating','uploading','thumbnail')", (channel_id, sha)).fetchone()
+                if active:
+                    raise ValueError('Этот выпуск уже стоит в очереди или загружается')
+            else:
+                old = c.execute('SELECT id FROM uploads WHERE channel_id=? AND video_sha=? ORDER BY created DESC,id DESC LIMIT 1', (channel_id, sha)).fetchone()
+                if old:
+                    return old['id']
             ident = uuid.uuid4().hex
             tmp = self.folder / (ident + '.jpg.tmp')
             shutil.copyfile(thumb, tmp)
             os.chmod(tmp, 0o600)
             os.replace(tmp, self.folder / (ident + '.jpg'))
-            c.execute('INSERT INTO uploads(id,episode,channel_id,video_sha,size,payload,status,created,updated) VALUES(?,?,?,?,?,?,?,?,?)',
-                      (ident, name, channel_id, sha, before.st_size, json.dumps(payload), 'queued', time.time(), time.time()))
+            c.execute('INSERT INTO uploads(id,episode,channel_id,video_sha,size,payload,status,created,updated,repeat_of) VALUES(?,?,?,?,?,?,?,?,?,?)',
+                      (ident, name, channel_id, sha, before.st_size, json.dumps(payload), 'queued', time.time(), time.time(), repeat_of))
             return ident
+
+    def reupload(self, ident, channel_id):
+        row = self.get(ident)
+        if row['channel_id'] != channel_id:
+            raise ValueError('Повторная загрузка должна идти на исходный канал')
+        status = json.loads(row['payload'])['status']
+        return self.enqueue(row['episode'], channel_id, status['selfDeclaredMadeForKids'],
+                            status['containsSyntheticMedia'], repeat_of=ident)
 
     def public(self):
         with self.db() as c:
-            rows = c.execute('SELECT id,episode,channel_id,size,offset,status,video_id,error,created,updated FROM uploads ORDER BY created DESC LIMIT 100').fetchall()
+            rows = c.execute('SELECT id,episode,channel_id,size,offset,status,video_id,error,created,updated,repeat_of,EXISTS(SELECT 1 FROM uploads child WHERE child.repeat_of=uploads.id) AS has_repeat FROM uploads ORDER BY created DESC LIMIT 100').fetchall()
         return {'account': self.credentials.status(), 'uploads': [dict(r) for r in rows]}
 
     def get(self, ident):
@@ -262,6 +293,8 @@ class Uploader:
             row = c.execute('SELECT * FROM uploads WHERE id=?', (ident,)).fetchone()
             if not row:
                 raise ValueError('Загрузка не найдена')
+            if action == 'retry' and c.execute('SELECT 1 FROM uploads WHERE repeat_of=?', (ident,)).fetchone():
+                raise ValueError('Для этой записи уже создана новая загрузка; используй её')
             if action == 'retry' and row['status'] in ('failed', 'thumbnail_failed', 'cancelled'):
                 c.execute("UPDATE uploads SET status='queued',error=NULL,updated=? WHERE id=?", (time.time(), ident))
             elif action == 'cancel' and row['status'] == 'queued' and not row['session'] and not row['video_id']:

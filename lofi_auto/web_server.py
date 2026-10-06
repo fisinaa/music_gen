@@ -313,6 +313,10 @@ class Handler(BaseHTTPRequestHandler):
                 if p.get('confirmed') is not True:raise ValueError('Подтверди загрузку приватного видео')
                 ident=YOUTUBE.enqueue(p.get('name'),p.get('channel_id'),p.get('made_for_kids'),p.get('synthetic'))
                 self.send_json({'id':ident},201)
+            elif path=='/api/youtube/reupload':
+                if p.get('confirmed') is not True:raise ValueError('Подтверди создание нового приватного видео')
+                ident=YOUTUBE.reupload(p.get('id'),p.get('channel_id'))
+                self.send_json({'id':ident},201)
             elif path=='/api/youtube/action':
                 YOUTUBE.action(p.get('id'),p.get('action'));self.send_json({'ok':True})
             elif path=='/api/publication':

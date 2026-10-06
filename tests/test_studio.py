@@ -147,6 +147,13 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(bytes(fake.received),(episode/'episode.mp4').read_bytes())
         self.assertEqual(self.api('/api/youtube/upload',payload)['id'],upload)
         self.assertEqual(fake.inserts,1)
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/youtube/reupload',{'id':upload,'channel_id':fake.channel_id})
+        new=self.api('/api/youtube/reupload',{'id':upload,'channel_id':fake.channel_id,'confirmed':True})['id']
+        self.assertNotEqual(new,upload)
+        self.assertEqual(self.api('/api/youtube/reupload',{'id':upload,'channel_id':fake.channel_id,'confirmed':True})['id'],new)
+        web.YOUTUBE.run_one(new)
+        self.assertEqual(fake.inserts,2)
+        self.assertEqual(web.YOUTUBE.get(new)['status'],'done')
         for path in ('/media/episode/'+job['name']+'/token.json','/media/episode/../../web_data/youtube/token.json'):
             with self.assertRaises(urllib.error.HTTPError):self.request(path)
 

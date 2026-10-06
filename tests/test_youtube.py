@@ -1,4 +1,5 @@
 """Deterministic HTTP-protocol simulations: no real Google requests or credentials."""
+import concurrent.futures
 import contextlib
 import io
 import json
@@ -55,6 +56,8 @@ class FakeGoogle:
             return 200, {}, json.dumps({'items':[{'id':self.channel_id,'snippet':{'title':'Test channel'}}]}).encode()
         if method == 'POST' and '/videos?' in url:
             self.inserts += 1
+            self.received = bytearray()
+            if self.inserts > 1:self.video_id = f'Video{self.inserts:06d}'
             self.metadata = json.loads(body)
             self.total = int(headers['X-Upload-Content-Length'])
             if self.fail_init:
@@ -133,6 +136,59 @@ class UploadTests(unittest.TestCase):
         for secret in ('FAKE_SECRET','FAKE_REFRESH','FAKE_ACCESS','FAKE_SESSION'):
             self.assertNotIn(secret, public)
         self.assertEqual((self.folder/'token.json').stat().st_mode & 0o777, 0o600)
+
+    def test_reupload_new_video_current_metadata_keeps_history(self):
+        original=self.enqueue();self.uploader.run_one(original)
+        before=self.uploader.get(original)
+        (self.episode/'publication.json').write_text('{"title":"New title","description":"Updated description"}')
+        new=self.uploader.reupload(original,self.fake.channel_id)
+        self.assertNotEqual(new,original)
+        self.assertEqual(self.uploader.reupload(original,self.fake.channel_id),new)
+        self.assertEqual(self.enqueue(),new)
+        self.assertIsNone(self.uploader.get(new)['session'])
+        self.uploader.run_one(new)
+        after=self.uploader.get(new)
+        self.assertEqual(after['status'],'done')
+        self.assertNotEqual(after['video_id'],before['video_id'])
+        self.assertEqual(self.fake.metadata['snippet']['title'],'New title')
+        self.assertEqual(self.fake.metadata['status']['privacyStatus'],'private')
+        self.assertEqual(self.uploader.get(original),before)
+        self.assertEqual(self.fake.inserts,2)
+        self.assertTrue(next(r for r in self.uploader.public()['uploads'] if r['id']==original)['has_repeat'])
+        third=self.uploader.reupload(new,self.fake.channel_id)
+        self.assertNotEqual(third,new)
+
+    def test_reupload_active_guard_and_concurrent_requests(self):
+        original=self.enqueue()
+        with self.assertRaises(ValueError):self.uploader.reupload(original,self.fake.channel_id)
+        self.uploader.update(original,status='needs_review')
+        with concurrent.futures.ThreadPoolExecutor(2) as pool:
+            ids=list(pool.map(lambda _:self.uploader.reupload(original,self.fake.channel_id),range(2)))
+        self.assertEqual(ids[0],ids[1])
+        with self.assertRaises(ValueError):self.uploader.reupload(original,'UC_WRONG')
+        with self.assertRaises(ValueError):self.uploader.action(original,'retry')
+        self.assertEqual(len(self.uploader.public()['uploads']),2)
+
+    def test_legacy_database_migration_preserves_session(self):
+        original=self.enqueue()
+        self.uploader.update(original,status='failed',session=yt.UPLOAD+'videos?upload_id=OLD',offset=42)
+        before=self.uploader.get(original)
+        columns='id,episode,channel_id,video_sha,size,payload,status,session,video_id,offset,error,created,updated'
+        with self.uploader.db() as c:
+            c.execute('ALTER TABLE uploads RENAME TO new_uploads')
+            c.execute('''CREATE TABLE uploads(id TEXT PRIMARY KEY,episode TEXT,channel_id TEXT,video_sha TEXT,
+                size INTEGER,payload TEXT,status TEXT,session TEXT,video_id TEXT,offset INTEGER DEFAULT 0,
+                error TEXT,created REAL,updated REAL,UNIQUE(channel_id,video_sha))''')
+            c.execute(f'INSERT INTO uploads({columns}) SELECT {columns} FROM new_uploads')
+            c.execute('DROP TABLE new_uploads')
+        migrated=yt.Uploader(self.root,self.root/'data',self.episodes,FastStop(),self.credentials)
+        self.assertEqual(migrated.get(original),before)
+        again=yt.Uploader(self.root,self.root/'data',self.episodes,FastStop(),self.credentials)
+        self.assertEqual(again.get(original),before)
+        new=again.reupload(original,self.fake.channel_id)
+        self.assertNotEqual(original,new)
+        self.assertEqual(again.get(original)['offset'],42)
+        with self.assertRaises(ValueError):again.action(original,'retry')
 
     def test_lost_final_response_recovers_same_video(self):
         ident = self.enqueue()

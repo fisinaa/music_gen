@@ -63,7 +63,16 @@ async function refreshYouTube(){try{
  const progress=node('progress');progress.max=u.size||1;progress.value=u.offset;progress.style.width='100%';card.append(progress,node('p',`${Math.floor(u.offset/Math.max(1,u.size)*100)}% · ${new Date(u.created*1000).toLocaleString()}`,'hint'));
  if(u.video_id){const link=node('a','Открыть видео в YouTube Studio');link.href='https://studio.youtube.com/video/'+encodeURIComponent(u.video_id)+'/edit';link.target='_blank';link.rel='noopener noreferrer';card.append(link,node('p','YouTube может ещё обрабатывать видео. Доступ при загрузке: приватный.','hint'));}
  if(u.error)card.append(node('p',u.error,'hint'));
- if(['failed','thumbnail_failed','cancelled'].includes(u.status))card.append(button(u.status==='thumbnail_failed'?'Повторить обложку':'Продолжить загрузку',async()=>{await api('/api/youtube/action',{id:u.id,action:'retry'});await refreshYouTube();}));
+ if(!u.has_repeat&&['failed','thumbnail_failed','cancelled'].includes(u.status))card.append(button(u.status==='thumbnail_failed'?'Повторить обложку':'Продолжить загрузку',async()=>{await api('/api/youtube/action',{id:u.id,action:'retry'});await refreshYouTube();}));
+ if(u.repeat_of)card.append(node('p','Повторная загрузка выпуска','hint'));
+ if(u.has_repeat)card.append(node('p','Для этой записи уже создана повторная загрузка — смотри более новую запись.','hint'));
+ if(!u.has_repeat&&['done','failed','thumbnail_failed','needs_review','cancelled'].includes(u.status))card.append(button('Загрузить заново',async()=>{
+ const fresh=await api('/api/youtube'),ch=fresh.account.channel;
+ if(!fresh.account.connected||!ch||ch.id!==u.channel_id)throw Error('Подключи исходный канал этой загрузки.');
+ if(!confirm(`Создать НОВОЕ приватное видео на канале ${ch.title} (${ch.id})? Будут использованы текущие сохранённые название, описание и обложка, а настройки аудитории и AI — из прежней загрузки. Старое видео останется на YouTube. Если прежний результат неизвестен, сначала проверь YouTube Studio.`))return;
+ await api('/api/youtube/reupload',{id:u.id,channel_id:ch.id,confirmed:true});
+ notify('Повторная загрузка добавлена. История прежней загрузки сохранена.');await refreshYouTube();
+ }));
  if(u.status==='needs_review'){const link=node('a','Проверить список видео в YouTube Studio');link.href='https://studio.youtube.com/';link.target='_blank';link.rel='noopener noreferrer';card.append(link);}
  parent.append(card);
  }
