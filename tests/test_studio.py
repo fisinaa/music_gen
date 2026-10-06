@@ -60,6 +60,26 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(rows[0]['date_kind'],'file')
         self.assertEqual(track_date({'sha256':one,'sources':[str(source)]},source)[1],'file')
 
+    def test_publication_for_existing_episode(self):
+        from PIL import Image
+        scenes=web.ROOT/'scenes';scenes.mkdir()
+        for i in range(5):Image.new('RGB',(640,360),(30+i*20,55,70)).save(scenes/f'{i}.png')
+        folder=web.EPISODES/'old_episode';folder.mkdir(parents=True)
+        (folder/'status.json').write_text(json.dumps({'status':'done','duration_seconds':600}))
+        (folder/'settings.json').write_text(json.dumps({'style':'morning','time_of_day':'morning'}))
+        (folder/'tracklist.json').write_text(json.dumps([{'title':'Quiet Window','start_in_mix':0},{'title':'Amber Coffee','start_in_mix':182.5}]))
+        data=self.api('/api/publication',{'name':'old_episode'})
+        self.assertIn('Rainy Morning',data['title'])
+        self.assertIn('03:02 Amber Coffee',data['description'])
+        with Image.open(folder/'thumbnail.jpg') as img:self.assertEqual(img.size,(1280,720))
+        edits={'title':'My edited title','description':'My saved description'}
+        self.api('/api/publication',{'name':'old_episode','edits':edits})
+        again=self.api('/api/publication',{'name':'old_episode'})
+        self.assertEqual(again['title'],edits['title'])
+        self.assertEqual(self.request('/media/episode/old_episode/title.txt')[1].decode().strip(),edits['title'])
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/publication',{'name':'../private'})
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/publication',{'name':'old_episode','edits':{'title':'x'*101,'description':''}})
+
     def test_long_queue_accounts_for_crossfade(self):
         import pipeline
         path=self.root/'jobs.json'

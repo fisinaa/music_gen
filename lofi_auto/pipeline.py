@@ -295,6 +295,15 @@ def make_jobs(path, target, style="morning", mood="calm", bpm=None, custom_promp
         jobs.append(j);usable+=j['duration_seconds']-crossfade
     write(path,jobs)
 
+def package_episode(episode):
+    try:
+        from episode_package import prepare
+        prepare(ROOT,episode)
+    except Exception as exc:
+        # Finished media remains usable; packaging can be retried in the web UI.
+        print(f'Publication package needs retry: {exc}',flush=True)
+
+
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('command',choices=['build','create','collect'])
@@ -380,11 +389,13 @@ def main():
         audio=make_audio(tracks,work,target,a.crossfade)
         if a.audio_only:
             write(state,{'stage':'complete','status':'done','audio':str(audio),'duration_seconds':target,'finished':time.time()})
+            package_episode(episode)
             print(f'DONE: {audio}',flush=True);return
         write(state,{'stage':'video','status':'running'})
         video=make_video(work,cache,target,a.width,a.loop_seconds,audio,a.time_of_day)
         write(state,{'stage':'complete','status':'done','video':str(video),'audio':str(audio),
                      'duration_seconds':target,'finished':time.time()})
+        package_episode(episode)
         print(f'\nDONE: {video}\nAUDIO: {audio}\nTRACKLIST: {episode/"tracklist.txt"}',flush=True)
     except BaseException as e:
         previous=read(state) if state.exists() else {}

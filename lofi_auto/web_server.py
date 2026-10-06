@@ -60,13 +60,13 @@ def media_path(kind, value):
     elif kind=='episode':
         if '/' not in value:raise ValueError('Файл не найден')
         name,file=value.split('/',1)
-        if not re.fullmatch(r'[A-Za-z0-9_-]+',name) or file not in ('episode.mp4','mix.wav','tracklist.txt'):
+        if not re.fullmatch(r'[A-Za-z0-9_-]+',name) or file not in ('episode.mp4','mix.wav','tracklist.txt','thumbnail.jpg','title.txt','description.txt','publication.json'):
             raise ValueError('Недопустимый путь')
         base=EPISODES;path=base/name/file
     else:raise ValueError('Недопустимый раздел')
     path=path.resolve()
     if not path.is_relative_to(base.resolve()) or not path.is_file():raise ValueError('Файл не найден')
-    if path.suffix not in ('.wav','.mp4','.txt'):raise ValueError('Недопустимый формат')
+    if path.suffix not in ('.wav','.mp4','.txt','.jpg','.json'):raise ValueError('Недопустимый формат')
     return path
 
 def library():
@@ -307,6 +307,13 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({'ok':True})
             elif path=='/api/job-action':
                 action(p.get('id'),p.get('action'),p.get('confirmed'));self.send_json({'ok':True})
+            elif path=='/api/publication':
+                from episode_package import prepare
+                name=p.get('name','')
+                if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9_-]+',name):raise ValueError('Неверный выпуск')
+                episode=(EPISODES/name).resolve()
+                if not episode.is_relative_to(EPISODES.resolve()) or not episode.is_dir():raise ValueError('Выпуск не найден')
+                self.send_json(prepare(ROOT,episode,p.get('edits')))
             elif path=='/api/preference':
                 sha=p.get('sha');media_path('music',sha)
                 if type(p.get('favorite')) is not bool or type(p.get('excluded')) is not bool:raise ValueError('Invalid preferences')
