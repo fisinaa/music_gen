@@ -41,6 +41,25 @@ class StudioTests(unittest.TestCase):
         with wave.open(str(path),'wb') as f:f.setnchannels(2);f.setsampwidth(2);f.setframerate(48000);f.writeframes(frames)
         export_track(path,web.MUSIC,{'seed':freq,'duration_seconds':seconds})
         return web.digest(path)
+    def test_music_dates_legacy_and_reimport(self):
+        from music_library import track_date
+        one=self.track(220,seconds=1)
+        source=self.root/'220.wav'
+        (self.root/'manifest.json').write_text(json.dumps({'status':'done','finished':1700000000,'qa':{'sha256':one}}))
+        # Legacy catalog without timestamps still recovers the original date.
+        item=next(t for t in self.api('/api/music') if t['sha']==one)
+        self.assertEqual(item['created_at'],1700000000)
+        self.assertEqual(item['date_kind'],'generation')
+        export_track(source,web.MUSIC)
+        (self.root/'manifest.json').unlink()
+        export_track(source,web.MUSIC)
+        self.assertEqual(next(t for t in self.api('/api/music') if t['sha']==one)['created_at'],1700000000)
+        two=self.track(330,seconds=1)
+        rows=self.api('/api/music')
+        self.assertEqual(rows[0]['sha'],two)
+        self.assertEqual(rows[0]['date_kind'],'file')
+        self.assertEqual(track_date({'sha256':one,'sources':[str(source)]},source)[1],'file')
+
     def test_long_queue_accounts_for_crossfade(self):
         import pipeline
         path=self.root/'jobs.json'

@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 from presets import STYLES, MOODS, SCENES
+from music_library import track_date
 
 ROOT=Path(__file__).resolve().parent
 DATA=Path(os.environ.get('LOFI_WEB_DATA',str(ROOT/'web_data'))).expanduser().resolve()
@@ -76,10 +77,12 @@ def library():
         try:p=media_path('music',sha)
         except ValueError:continue
         pref=prefs.get(sha,{})
+        timestamp,date_kind=track_date({**r,'sha256':sha},p)
         result.append({'sha':sha,'title':r.get('title',p.stem),'filename':p.name,
+            'created_at':timestamp,'date_kind':date_kind,
             'seed':r.get('job',{}).get('seed'),'seconds':r.get('job',{}).get('duration_seconds'),
             'favorite':bool(pref.get('favorite')),'excluded':bool(pref.get('excluded'))})
-    return sorted(result,key=lambda x:(not x['favorite'],x['title']))
+    return sorted(result,key=lambda x:(-x['created_at'],x['title']))
 
 def validate(payload):
     if not isinstance(payload,dict):raise ValueError('Ожидается объект')

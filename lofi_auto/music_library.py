@@ -1,6 +1,26 @@
 """Flat WAV library with stable random titles and content-based deduplication."""
-import fcntl, hashlib, json, os, random, shutil
+import fcntl, hashlib, json, math, os, random, shutil
 from pathlib import Path
+
+def track_date(record, path):
+    """Prefer verified generation completion; label legacy file dates honestly."""
+    def valid(value):
+        return type(value) in (int, float) and math.isfinite(value) and value > 0
+    if valid(record.get('generated_at')):
+        return record['generated_at'], 'generation'
+    dates=[]
+    for source in record.get('sources', []):
+        try:
+            manifest=json.loads(Path(source).with_name('manifest.json').read_text())
+            if (manifest.get('status')=='done' and not manifest.get('recovered_from')
+                    and manifest.get('qa',{}).get('sha256')==record.get('sha256')
+                    and valid(manifest.get('finished'))):
+                dates.append(manifest['finished'])
+        except (OSError, ValueError, TypeError, AttributeError):
+            continue
+    if dates:return min(dates), 'generation'
+    if valid(record.get('file_date')):return record['file_date'], 'file'
+    return Path(path).stat().st_mtime, 'file'
 
 def digest(path):
     h=hashlib.sha256()
@@ -32,8 +52,10 @@ def export_track(source, folder, job=None):
             if digest(tmp)!=sha:raise RuntimeError('Source changed while copying')
             os.replace(tmp,dest)
         sources=list(dict.fromkeys(old.get('sources',[])+[str(source)]))
-        record={'filename':name,'title':title.replace('_',' '),'sha256':sha,'sources':sources,
+        record={**old,'filename':name,'title':title.replace('_',' '),'sha256':sha,'sources':sources,
                 'job':job or old.get('job',{})}
+        timestamp,kind=track_date(record,dest)
+        record['generated_at' if kind=='generation' else 'file_date']=timestamp
         catalog[sha]=record
         tmp=index.with_suffix('.tmp');tmp.write_text(json.dumps(catalog,ensure_ascii=False,indent=2)+'\n');os.replace(tmp,index)
     return {'library_path':str(dest),'title':record['title']}
