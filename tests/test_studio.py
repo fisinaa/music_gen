@@ -65,7 +65,8 @@ class StudioTests(unittest.TestCase):
     def test_publication_for_existing_episode(self):
         from PIL import Image
         scenes=web.ROOT/'scenes';scenes.mkdir()
-        for i in range(5):Image.new('RGB',(640,360),(30+i*20,55,70)).save(scenes/f'{i}.png')
+        from presets import BACKGROUNDS
+        for i,name in enumerate(BACKGROUNDS[:5]):Image.new('RGB',(640,360),(30+i*20,55,70)).save(scenes/name)
         folder=web.EPISODES/'old_episode';folder.mkdir(parents=True)
         (folder/'status.json').write_text(json.dumps({'status':'done','duration_seconds':600}))
         (folder/'settings.json').write_text(json.dumps({'style':'morning','time_of_day':'morning'}))
@@ -88,6 +89,35 @@ class StudioTests(unittest.TestCase):
         pipeline.make_jobs(path,10800,track_min=30,track_max=30,crossfade=12)
         jobs=json.loads(path.read_text())
         self.assertGreaterEqual(sum(j['duration_seconds']-12 for j in jobs),10800)
+
+    def test_audition_queue_and_generation_budget(self):
+        import pipeline
+        from lofi_queue import validate_job
+        for style,scene in [('chillout','coast'),('lounge','terrace'),('ambient','lake')]:
+            ident=self.api('/api/audition',{'style':style})['id']
+            row=next(j for j in self.api('/api/state')['jobs'] if j['id']==ident)
+            payload=row['payload']
+            self.assertTrue(payload['audio_only'])
+            self.assertEqual(payload['time_of_day'],scene)
+            self.assertEqual(payload['minutes'],2.5)
+            command=web.prepare_command({**row,'payload':json.dumps(payload)})
+            self.assertIn('--audition',command)
+            jobs_path=self.root/(style+'.json')
+            pipeline.make_jobs(jobs_path,150,style=style,audition=True)
+            jobs=json.loads(jobs_path.read_text())
+            self.assertEqual(len(jobs),2)
+            for job in jobs:
+                validate_job(job)
+                self.assertEqual(job['duration_seconds'],90)
+                self.assertEqual(job['style'],style)
+                self.assertTrue(job['audition'])
+            original=jobs_path.read_bytes()
+            pipeline.make_jobs(jobs_path,150,style=style,audition=True)
+            self.assertEqual(jobs_path.read_bytes(),original)
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/audition',{'style':'unknown'})
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/jobs',{'audition':'true'})
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/jobs',{'audition':True,'mode':'library'})
+        self.assertEqual(len(self.api('/api/state')['jobs']),3)
 
     def test_auth_validation_and_range(self):
         with self.assertRaises(urllib.error.HTTPError) as error:self.request('/api/state',auth=False)

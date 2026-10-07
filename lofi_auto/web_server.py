@@ -5,7 +5,7 @@ import secrets, shutil, signal, sqlite3, subprocess, sys, threading, time, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, unquote
-from presets import STYLES, MOODS, SCENES
+from presets import STYLES, MOODS, SCENES, AUDITION_SCENES
 from music_library import track_date
 
 ROOT=Path(__file__).resolve().parent
@@ -81,13 +81,19 @@ def library():
         timestamp,date_kind=track_date({**r,'sha256':sha},p)
         result.append({'sha':sha,'title':r.get('title',p.stem),'filename':p.name,
             'created_at':timestamp,'date_kind':date_kind,
+            'style':r.get('job',{}).get('style'),'audition':r.get('job',{}).get('audition',False),
             'seed':r.get('job',{}).get('seed'),'seconds':r.get('job',{}).get('duration_seconds'),
             'favorite':bool(pref.get('favorite')),'excluded':bool(pref.get('excluded'))})
     return sorted(result,key=lambda x:(-x['created_at'],x['title']))
 
 def validate(payload):
     if not isinstance(payload,dict):raise ValueError('Ожидается объект')
-    out={}
+    audition=payload.get('audition',False)
+    if type(audition) is not bool:raise ValueError('Неверный режим пробы')
+    if audition:
+        if payload.get('mode','create')!='create':raise ValueError('Проба требует генерации новой музыки')
+        payload={**payload,'minutes':2.5,'audio_only':True,'track_min':90,'track_max':90,'crossfade':6}
+    out={'audition':audition}
     out['mode']=payload.get('mode','create')
     if out['mode'] not in ('create','library'):raise ValueError('Недопустимый источник музыки')
     out['title']=str(payload.get('title','')).strip()[:100] or 'Retro Reverie Sounds'
@@ -167,6 +173,7 @@ def prepare_command(row):
     if p.get('bpm'):cmd+=['--bpm',str(p['bpm'])]
     if p.get('custom_prompt'):cmd+=['--custom-prompt',p['custom_prompt']]
     if p['audio_only']:cmd+=['--audio-only']
+    if p.get('audition'):cmd+=['--audition']
     if p.get('retry'):cmd+=['--retry-failed','--retry-interrupted']
     if p['mode']=='library':
         source=episode/'selected_tracks'
@@ -303,6 +310,12 @@ class Handler(BaseHTTPRequestHandler):
             p=json.loads(self.rfile.read(size));path=urlparse(self.path).path
             if not isinstance(p,dict):raise ValueError('Ожидается JSON-объект')
             if path=='/api/jobs':self.send_json({'id':enqueue(p)},201)
+            elif path=='/api/audition':
+                style=p.get('style')
+                if not isinstance(style,str) or style not in AUDITION_SCENES:raise ValueError('Выбери chillout, lounge или ambient')
+                ident=enqueue({'title':'Проба · '+STYLES[style]['label'],'style':style,
+                    'time_of_day':AUDITION_SCENES[style],'audition':True})
+                self.send_json({'id':ident},201)
             elif path=='/api/queue':
                 if type(p.get('paused')) is not bool:raise ValueError('paused required')
                 with db() as c:c.execute("UPDATE settings SET value=? WHERE key='paused'",('1' if p['paused'] else '0',))

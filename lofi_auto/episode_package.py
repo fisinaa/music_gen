@@ -2,10 +2,11 @@
 import fcntl, json, os, re
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageOps
-from presets import SCENES, STYLES
+from presets import SCENES, STYLES, BACKGROUNDS
 
 SCENE_NAMES={'morning':'Rainy Morning Café','late_morning':'Slow Morning Café','day':'Afternoon Café',
-             'sunset':'Sunset Café','evening':'Rainy Evening Café','cycle':'A Day at the Café'}
+             'sunset':'Sunset Café','evening':'Rainy Evening Café','cycle':'A Day at the Café',
+             'coast':'Quiet Coast','terrace':'Twilight Terrace','lake':'Misty Lake'}
 STYLE_NAMES={'morning':'Mellow Jazz','lofi':'Lo-fi Jazz','chillout':'Coastal Chillout','lounge':'Sunset Lounge','ambient':'Ambient Piano'}
 
 def read(path, default):
@@ -26,8 +27,7 @@ def stamp(seconds):
     s=max(0,int(seconds));return f'{s//3600}:{s//60%60:02}:{s%60:02}' if s>=3600 else f'{s//60:02}:{s%60:02}'
 
 def artwork(root, episode, scene, style):
-    images=sorted((root/'scenes').glob('*.png'))
-    if len(images)!=5:raise ValueError('Для обложки нужны пять фонов кафе')
+    images=[root/'scenes'/name for name in BACKGROUNDS]
     img=ImageOps.fit(Image.open(images[SCENES[scene]['indices'][0]]).convert('RGB'),(1280,720))
     overlay=Image.new('RGBA',img.size,(0,0,0,0));draw=ImageDraw.Draw(overlay)
     for y in range(720):draw.line((0,y,1280,y),fill=(8,17,27,int(30+170*y/720)))

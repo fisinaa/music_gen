@@ -2,10 +2,14 @@ from PIL import Image, ImageDraw, ImageFilter
 import numpy as np
 import subprocess, math, argparse
 from pathlib import Path
+from functools import lru_cache
+from presets import BACKGROUNDS
 P=Path(__file__).resolve().parent
 W,H=1600,900;FPS=24
-bases=[Image.open(f).convert('RGB').resize((W,H),Image.Resampling.LANCZOS) for f in sorted((P/'scenes').glob('*.png'))]
-assert len(bases)==5,'Expected 5 scene backgrounds'
+@lru_cache(maxsize=8)
+def background(index):
+ with Image.open(P/'scenes'/BACKGROUNDS[index]) as img:
+  return img.convert('RGB').resize((W,H),Image.Resampling.LANCZOS)
 mask=Image.new('L',(W,H));d=ImageDraw.Draw(mask)
 d.polygon([(799,16),(1599,0),(1599,627),(800,493)],fill=255)
 # Restrict left-pane animation to clear glass above the foreground plant.
@@ -16,7 +20,14 @@ rains=[(rng.uniform(550,1650),rng.uniform(-100,900),rng.uniform(160,240),rng.uni
 drops=[(rng.uniform(835,1570),rng.uniform(-100,690),rng.uniform(12,31),rng.uniform(1.7,3.3),rng.uniform(0,7)) for _ in range(43)]
 Y,X=np.mgrid[:H,:W].astype(np.float32)
 def draw_scene(index,t):
- frame=bases[index].copy()
+ frame=background(index).copy()
+ if index >= 5:
+  # Outdoor locations never inherit the café window masks or cup coordinates.
+  if index == 7:
+   fog=.055*np.exp(-((X-(950+35*math.sin(t*.12)))/620)**2-((Y-515)/34)**2)
+   frame=Image.composite(Image.new('RGB',(W,H),(198,210,216)),frame,
+       Image.fromarray((fog*255).astype('uint8')))
+  return frame
  fog=(.075*np.exp(-((X-(1000+t*8))/330)**2-((Y-(345+12*np.sin(t*.3)))/108)**2)+.032*np.exp(-((X-(1490-t*7))/280)**2-((Y-460)/70)**2))*ma
  frame=Image.composite(Image.new('RGB',(W,H),(183,201,210)),frame,Image.fromarray((fog*255*(1 if index in (0,4) else 0)).astype('uint8')))
  layer=Image.new('RGBA',(W,H));ld=ImageDraw.Draw(layer)

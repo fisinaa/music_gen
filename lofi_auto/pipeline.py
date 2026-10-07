@@ -5,7 +5,7 @@ import shutil, subprocess, sys, time
 from pathlib import Path
 from urllib.request import urlopen
 import numpy as np
-from presets import STYLES, MOODS, SCENES, templates
+from presets import STYLES, MOODS, SCENES, BACKGROUNDS, templates
 
 ROOT = Path(__file__).resolve().parent
 VERSION = '1.0.0'
@@ -217,15 +217,14 @@ def make_loop(index, dest, length, width):
     return tmp
 
 def make_video(work, cache, target, width, loop_seconds, audio, time_of_day="cycle"):
-    scenes=sorted((ROOT/'scenes').glob('*.png'))
-    if len(scenes)!=5: raise RuntimeError('Expected five scenes')
+    scenes=[ROOT/'scenes'/name for name in BACKGROUNDS]
     loops=[]
     for i in SCENES[time_of_day]["indices"]:
         p=scenes[i]
         key=fingerprint([VERSION,sha(p),sha(ROOT/'scene.py'),width,loop_seconds,FPS])
         dest=cache/f'loop_{i}_{key[:16]}.mp4'
         if not finished(dest,key):
-            print(f'ANIMATE scene {i+1}/5 (cached for future episodes)',flush=True)
+            print(f'ANIMATE scene {i+1}/{len(scenes)} (cached for future episodes)',flush=True)
             tmp=make_loop(i,dest,loop_seconds,width);commit(tmp,dest,key,loop_seconds)
         loops.append(dest)
     parts=[]; segment=target/len(loops); transition=min(3,segment/4)
@@ -285,9 +284,17 @@ def ensure_server(url):
         print('  waiting for ACE-Step...',flush=True);time.sleep(10)
     raise RuntimeError('ACE-Step startup timeout; inspect journalctl --user -u lofi-ace')
 
-def make_jobs(path, target, style="morning", mood="calm", bpm=None, custom_prompt="", track_min=180, track_max=240, crossfade=6):
+def make_jobs(path, target, style="morning", mood="calm", bpm=None, custom_prompt="", track_min=180, track_max=240, crossfade=6, audition=False):
     if path.exists(): return
     choices=templates(read(ROOT/'prompt_templates.json'),style,mood,bpm,custom_prompt); rng=random.Random(os.urandom(32)); jobs=[]; usable=0
+    if audition:
+        # Exactly two independent 90-second takes; no full-episode spare budget.
+        for i in range(2):
+            j=dict(choices[i]);j.update(number=i+1,seed=rng.randrange(1,2**31),
+                duration_seconds=90,audition=True)
+            jobs.append(j)
+        write(path,jobs)
+        return
     # A spare track accommodates trimming and occasional short outputs.
     while usable<target+240:
         j=dict(choices[len(jobs)%len(choices)]); j.update(number=len(jobs)+1,
@@ -318,6 +325,7 @@ def main():
     ap.add_argument('--track-min',type=int,default=180)
     ap.add_argument('--track-max',type=int,default=240)
     ap.add_argument('--audio-only',action='store_true')
+    ap.add_argument('--audition',action='store_true',help='Two 90-second takes and a 150-second audio preview')
     ap.add_argument('--minutes',type=float,default=30)
     ap.add_argument('--output',type=Path,default=ROOT/'episodes')
     ap.add_argument('--url',default='http://127.0.0.1:7860')
@@ -327,6 +335,9 @@ def main():
     ap.add_argument('--retry-failed',action='store_true')
     ap.add_argument('--retry-interrupted',action='store_true')
     a=ap.parse_args()
+    if a.audition:
+        if a.command!='create':ap.error('--audition requires create')
+        a.audio_only=True;a.minutes=2.5;a.track_min=a.track_max=90;a.crossfade=6
     if a.command!='collect' and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,79}',a.name or ''): ap.error('Use letters, digits, _ or - in --name')
     if a.bpm is not None and not 40<=a.bpm<=180: ap.error('BPM must be 40..180')
     if not 30<=a.track_min<=a.track_max<=300: ap.error('Track durations must be 30..300, min <= max')
@@ -363,7 +374,7 @@ def main():
               'crossfade':a.crossfade,'width':a.width,'loop_seconds':a.loop_seconds,'url':a.url}
     extras={'style':(a.style,'morning'),'mood':(a.mood,'calm'),'time_of_day':(a.time_of_day,'cycle'),
             'bpm':(a.bpm,None),'custom_prompt':(a.custom_prompt,''),'track_min':(a.track_min,180),
-            'track_max':(a.track_max,240),'audio_only':(a.audio_only,False)}
+            'track_max':(a.track_max,240),'audio_only':(a.audio_only,False),'audition':(a.audition,False)}
     settings.update({k:v for k,(v,default) in extras.items() if v!=default})
     settings_file=episode/'settings.json'
     if settings_file.exists() and read(settings_file)!=settings:
@@ -373,7 +384,7 @@ def main():
     try:
         if a.command=='create':
             write(state,{'stage':'generation','status':'running'})
-            jobs=episode/'jobs.json';make_jobs(jobs,target,a.style,a.mood,a.bpm,a.custom_prompt,a.track_min,a.track_max,a.crossfade);ensure_server(a.url)
+            jobs=episode/'jobs.json';make_jobs(jobs,target,a.style,a.mood,a.bpm,a.custom_prompt,a.track_min,a.track_max,a.crossfade,a.audition);ensure_server(a.url)
             args=[sys.executable,ROOT/'lofi_queue.py','run','--url',a.url,'--jobs',jobs,'--output',source,'--music-dir',a.music_dir.expanduser().resolve()]
             if a.retry_failed: args.append('--retry-failed')
             if a.retry_interrupted: args.append('--retry-interrupted')
