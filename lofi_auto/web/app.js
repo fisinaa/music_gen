@@ -6,7 +6,7 @@ const phases={generation:'Генерация музыки',audio:'Проверк
 function node(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
 function notify(text){$('#notice').textContent=text;$('#notice').hidden=false;}
 async function api(path,payload){const res=await fetch(path,payload===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(res.status===401)throw Error('Нужен вход. Обнови страницу и введи логин/пароль.');const data=await res.json();if(!res.ok)throw Error(data.error||'Ошибка запроса');return data;}
-function tab(id){currentTab=id;document.querySelectorAll('.tab').forEach(n=>n.hidden=n.id!==id);document.querySelectorAll('nav button').forEach(n=>n.classList.toggle('active',n.dataset.tab===id));if(id==='music')loadMusic();if(id==='youtube')refreshYouTube();}
+function tab(id){currentTab=id;document.querySelectorAll('.tab').forEach(n=>n.hidden=n.id!==id);document.querySelectorAll('nav button').forEach(n=>n.classList.toggle('active',n.dataset.tab===id));if(id==='music')loadMusic();if(id==='youtube')refreshYouTube();if(id==='vk')refreshVK();}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
 function options(select,items,chosen){select.replaceChildren();Object.entries(items).forEach(([v,p])=>{const n=node('option',p.label);n.value=v;select.append(n);});select.value=chosen;}
 function updateForm(){const isLibrary=form.elements.mode.value==='library',audio=form.elements.format.value==='audio';$('#library-pick').hidden=!isLibrary;$('#musical-card').style.opacity=isLibrary?'.5':'1';for(const key of ['style','mood','bpm','custom_prompt','track_min','track_max'])form.elements[key].disabled=isLibrary;form.elements.time_of_day.disabled=audio;form.elements.width.disabled=audio;if(state){const p=state.presets.styles[form.elements.style.value];$('#style-hint').textContent=(p.description?p.description+' ':'')+(p.tested?'Проверен на нашей системе.':'Экспериментальный пресет — первый результат стоит прослушать.');}}
@@ -38,12 +38,20 @@ async function publicationEditor(card,e){
  for(const [file,label] of [['thumbnail.jpg','Обложка'],['title.txt','Название'],['description.txt','Описание']]){const a=node('a',label);a.href='/media/episode/'+encodeURIComponent(e.name)+'/'+file;a.download=file;downloads.append(a);}
  box.append(downloads);
  if(e.video){
+ box.append(button('Сохранить и загрузить в VK',async()=>{
+ const vk=await api('/api/vk');if(!vk.account.connected){tab('vk');throw Error('Сначала подключи VK по инструкции.');}
+ const target=vk.account.target;
+ if(!confirm(`Загрузить «${title.value}» в VK: ${target.title} (${target.id})? Доступ открытый в пределах сообщества. Запись на стене не создаётся.`))return;
+ await api('/api/publication',{name:e.name,edits:{title:title.value,description:desc.value}});
+ await api('/api/vk/upload',{name:e.name,target_id:target.id,confirmed:true});
+ notify('Выпуск добавлен в очередь VK.');tab('vk');await refreshVK();
+ }));
  const label=node('label','Этот выпуск предназначен специально для детей?'),kids=node('select');
  for(const [v,text] of [['','Выбери аудиторию'],['no','Нет'],['yes','Да']]){const o=node('option',text);o.value=v;kids.append(o);}label.append(kids);
  const synthLabel=node('label','Синтетический / AI-контент'),synth=node('input');synth.type='checkbox';synth.checked=true;synthLabel.append(synth);
  const privacyLabel=node('label','Доступ к видео'),privacy=privacySelect();privacyLabel.append(privacy);
  box.append(label,synthLabel,privacyLabel,node('p','Загрузится видео с выбранным доступом с этими текстами и обложкой. После добавления загрузки последующие правки оформления на неё не влияют.','hint'));
- box.append(button('Сохранить и загрузить',async()=>{
+ box.append(button('Сохранить и загрузить в YouTube',async()=>{
  if(!kids.value)throw Error('Выбери аудиторию выпуска.');
  const yt=await api('/api/youtube');if(!yt.account.connected){tab('youtube');throw Error('Сначала подключи канал по инструкции во вкладке YouTube.');}
  const ch=yt.account.channel;if(!confirm(`Загрузить «${title.value}» с режимом «${privacyNames[privacy.value]}» на канал ${ch.title} (${ch.id})?`))return;
@@ -85,4 +93,21 @@ async function refreshYouTube(){try{
  parent.append(card);
  }
  }catch(e){$('#youtube-account').textContent='Не удалось получить состояние YouTube';if(currentTab==='youtube')notify(e.message);}}
-async function poll(){await refresh();if(currentTab==='youtube')await refreshYouTube();setTimeout(poll,4000);}poll();
+async function refreshVK(){try{
+ const data=await api('/api/vk');
+ $('#vk-account').textContent=data.account.connected?`${data.account.target.title} · ${data.account.target.id}`:'VK ещё не подключён';
+ const parent=$('#vk-uploads');parent.replaceChildren();
+ if(!data.uploads.length)parent.append(node('p','Выбери выпуск → Оформление → Сохранить и загрузить в VK.','hint'));
+ const names={queued:'В очереди',checking:'Проверка файла',initiating:'Создание видео',uploading:'Отправка файла',done:'Передано VK · может ещё обрабатываться',failed:'Ошибка до отправки',needs_review:'Проверь результат в VK',cancelled:'Отменено'};
+ for(const u of data.uploads){const card=node('article',undefined,'card');card.append(node('h2',u.episode),node('p',names[u.status]||u.status));
+ const progress=node('progress');progress.max=u.size||1;progress.value=u.offset;card.append(progress,node('p',`${Math.floor(u.offset/Math.max(1,u.size)*100)}% отправлено · ${new Date(u.created*1000).toLocaleString()}`,'hint'));
+ if(u.video_id){const link=node('a','Открыть видео VK');link.href=`https://vk.com/video${u.owner_id}_${u.video_id}`;link.target='_blank';link.rel='noopener noreferrer';card.append(link);}
+ if(u.error)card.append(node('p',u.error,'hint'));
+ if(u.status==='queued')card.append(button('Отменить',async()=>{await api('/api/vk/action',{id:u.id,action:'cancel'});await refreshVK();}));
+ if(u.has_repeat)card.append(node('p','Уже создана повторная загрузка.','hint'));
+ if(!u.has_repeat&&['done','failed','needs_review','cancelled'].includes(u.status))card.append(button('Загрузить заново',async()=>{
+ if(!confirm('Будет создано НОВОЕ открытое видео в VK. Старое останется. При неизвестном результате сначала проверь VK. Продолжить?'))return;
+ await api('/api/vk/reupload',{id:u.id,target_id:u.target_id,confirmed:true});await refreshVK();
+ }));parent.append(card);}
+ }catch(e){notify(e.message);}}
+async function poll(){await refresh();if(currentTab==='youtube')await refreshYouTube();if(currentTab==='vk')await refreshVK();setTimeout(poll,4000);}poll();

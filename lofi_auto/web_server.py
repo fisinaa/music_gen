@@ -17,6 +17,7 @@ CHILD=None
 CHILD_LOCK=threading.Lock()
 PASSWORD=''
 YOUTUBE=None
+VK=None
 
 def read(path, default=None):
     try:return json.loads(Path(path).read_text())
@@ -292,6 +293,7 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/state':self.send_json(snapshot())
             elif path=='/api/music':self.send_json(library())
             elif path=='/api/youtube':self.send_json(YOUTUBE.public())
+            elif path=='/api/vk':self.send_json(VK.public())
             elif path in ('/','/app.js','/style.css'):
                 self.send_file(ROOT/'web'/({'/':'index.html','/app.js':'app.js','/style.css':'style.css'}[path]))
             elif path.startswith('/media/'):
@@ -322,6 +324,14 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({'ok':True})
             elif path=='/api/job-action':
                 action(p.get('id'),p.get('action'),p.get('confirmed'));self.send_json({'ok':True})
+            elif path=='/api/vk/upload':
+                if p.get('confirmed') is not True:raise ValueError('Подтверди открытую загрузку в VK')
+                self.send_json({'id':VK.enqueue(p.get('name'),p.get('target_id'))},201)
+            elif path=='/api/vk/reupload':
+                if p.get('confirmed') is not True:raise ValueError('Подтверди создание нового видео в VK')
+                self.send_json({'id':VK.reupload(p.get('id'),p.get('target_id'))},201)
+            elif path=='/api/vk/action':
+                VK.action(p.get('id'),p.get('action'));self.send_json({'ok':True})
             elif path=='/api/youtube/upload':
                 if p.get('confirmed') is not True:raise ValueError('Подтверди загрузку видео с выбранным доступом')
                 ident=YOUTUBE.enqueue(p.get('name'),p.get('channel_id'),p.get('made_for_kids'),p.get('synthetic'),privacy=p.get('privacy','private'))
@@ -352,7 +362,7 @@ class Server(ThreadingHTTPServer):
     daemon_threads=True
 
 def main():
-    global PASSWORD, YOUTUBE
+    global PASSWORD, YOUTUBE, VK
     ap=argparse.ArgumentParser();ap.add_argument('--host',default=os.environ.get('LOFI_WEB_HOST','127.0.0.1'))
     ap.add_argument('--port',type=int,default=int(os.environ.get('LOFI_WEB_PORT','7861')))
     ap.add_argument('--init-only',action='store_true');a=ap.parse_args()
@@ -364,9 +374,12 @@ def main():
     if a.init_only:print('Studio initialized. Password file:',DATA/'password');return
     from youtube_upload import Uploader
     YOUTUBE=Uploader(ROOT,DATA,EPISODES,STOP)
+    from vk_upload import Uploader as VKUploader
+    VK=VKUploader(ROOT,DATA,EPISODES,STOP)
     server=Server((a.host,a.port),Handler);server.timeout=1
     thread=threading.Thread(target=worker,daemon=True);thread.start()
     youtube_thread=threading.Thread(target=YOUTUBE.run,daemon=True);youtube_thread.start()
+    vk_thread=threading.Thread(target=VK.run,daemon=True);vk_thread.start()
     def stop(*_):
         STOP.set()
         with CHILD_LOCK:
@@ -377,6 +390,6 @@ def main():
     try:
         while not STOP.is_set():server.handle_request()
     finally:
-        stop();server.server_close();thread.join(timeout=10);youtube_thread.join(timeout=5)
+        stop();server.server_close();thread.join(timeout=10);youtube_thread.join(timeout=5);vk_thread.join(timeout=5)
 
 if __name__=='__main__':main()
