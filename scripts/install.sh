@@ -20,4 +20,6 @@ for name in ['lofi','setup.sh','run_ace.sh','setup_web.sh','run_web.sh','connect
 print('Installed:',dest)
 if backup.exists():print('Changed code backup:',backup)
 PY
-bash "$target_dir/setup.sh"
+if [[ "${LOFI_SKIP_SERVICE_SETUP:-0}" != 1 ]]; then
+  bash "$target_dir/setup.sh"
+fi

@@ -5,7 +5,7 @@ import shutil, subprocess, sys, time
 from pathlib import Path
 from urllib.request import urlopen
 import numpy as np
-from presets import STYLES, MOODS, SCENES, BACKGROUNDS, templates
+from presets import STYLES, MOODS, SCENES, BACKGROUNDS, PROFILES, templates
 
 ROOT = Path(__file__).resolve().parent
 VERSION = '1.0.0'
@@ -284,9 +284,9 @@ def ensure_server(url):
         print('  waiting for ACE-Step...',flush=True);time.sleep(10)
     raise RuntimeError('ACE-Step startup timeout; inspect journalctl --user -u lofi-ace')
 
-def make_jobs(path, target, style="morning", mood="calm", bpm=None, custom_prompt="", track_min=180, track_max=240, crossfade=6, audition=False):
+def make_jobs(path, target, style="morning", mood="calm", bpm=None, custom_prompt="", track_min=180, track_max=240, crossfade=6, audition=False, profile="stable", seed_base=None):
     if path.exists(): return
-    choices=templates(read(ROOT/'prompt_templates.json'),style,mood,bpm,custom_prompt); rng=random.Random(os.urandom(32)); jobs=[]; usable=0
+    choices=templates(read(ROOT/'prompt_templates.json'),style,mood,bpm,custom_prompt,profile); rng=random.Random(seed_base if seed_base is not None else os.urandom(32)); jobs=[]; usable=0
     if audition:
         # Exactly two independent 90-second takes; no full-episode spare budget.
         for i in range(2):
@@ -318,6 +318,8 @@ def main():
     ap.add_argument('--name',help='Episode folder name, e.g. cafe_day_001')
     ap.add_argument('--music-dir',type=Path,default=Path(os.environ.get('LOFI_MUSIC_DIR',str(ROOT/'music'))))
     ap.add_argument('--style',choices=list(STYLES),default='morning')
+    ap.add_argument('--profile',choices=list(PROFILES),default='stable')
+    ap.add_argument('--seed-base',type=int,help='Reproducible seed sequence for paired comparisons')
     ap.add_argument('--mood',choices=list(MOODS),default='calm')
     ap.add_argument('--time-of-day',choices=list(SCENES),default='cycle')
     ap.add_argument('--bpm',type=int)
@@ -339,6 +341,7 @@ def main():
         if a.command!='create':ap.error('--audition requires create')
         a.audio_only=True;a.minutes=2.5;a.track_min=a.track_max=90;a.crossfade=6
     if a.command!='collect' and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,79}',a.name or ''): ap.error('Use letters, digits, _ or - in --name')
+    if a.seed_base is not None and not 0<=a.seed_base<2**31:ap.error('--seed-base must be 0..2147483647')
     if a.bpm is not None and not 40<=a.bpm<=180: ap.error('BPM must be 40..180')
     if not 30<=a.track_min<=a.track_max<=300: ap.error('Track durations must be 30..300, min <= max')
     if len(a.custom_prompt)>2000: ap.error('Custom prompt too long')
@@ -374,7 +377,7 @@ def main():
               'crossfade':a.crossfade,'width':a.width,'loop_seconds':a.loop_seconds,'url':a.url}
     extras={'style':(a.style,'morning'),'mood':(a.mood,'calm'),'time_of_day':(a.time_of_day,'cycle'),
             'bpm':(a.bpm,None),'custom_prompt':(a.custom_prompt,''),'track_min':(a.track_min,180),
-            'track_max':(a.track_max,240),'audio_only':(a.audio_only,False),'audition':(a.audition,False)}
+            'track_max':(a.track_max,240),'audio_only':(a.audio_only,False),'audition':(a.audition,False),'profile':(a.profile,'stable'),'seed_base':(a.seed_base,None)}
     settings.update({k:v for k,(v,default) in extras.items() if v!=default})
     settings_file=episode/'settings.json'
     if settings_file.exists() and read(settings_file)!=settings:
@@ -384,7 +387,7 @@ def main():
     try:
         if a.command=='create':
             write(state,{'stage':'generation','status':'running'})
-            jobs=episode/'jobs.json';make_jobs(jobs,target,a.style,a.mood,a.bpm,a.custom_prompt,a.track_min,a.track_max,a.crossfade,a.audition);ensure_server(a.url)
+            jobs=episode/'jobs.json';make_jobs(jobs,target,a.style,a.mood,a.bpm,a.custom_prompt,a.track_min,a.track_max,a.crossfade,a.audition,a.profile,a.seed_base);ensure_server(a.url)
             args=[sys.executable,ROOT/'lofi_queue.py','run','--url',a.url,'--jobs',jobs,'--output',source,'--music-dir',a.music_dir.expanduser().resolve()]
             if a.retry_failed: args.append('--retry-failed')
             if a.retry_interrupted: args.append('--retry-interrupted')

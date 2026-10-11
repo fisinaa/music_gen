@@ -33,16 +33,33 @@ VARIATIONS=['Spacious melody with gentle answering phrases.', 'Small melodic var
  'Tasteful changing harmonies and a gently moving bass line.', 'Sparse expressive phrases with sustained harmony.',
  'Delicate instrumental dialogue with subtle variations.', 'Natural flowing arrangement with soft dynamics.']
 
-def templates(original, style='morning', mood='calm', bpm=None, custom_prompt=''):
-    profile=STYLES[style]; result=[]
+PROFILES = {'stable': {'label':'Текущий · контроль'},
+ 'melodic': {'label':'Мелодия и развитие'}, 'dialogue': {'label':'Диалог и движение'}}
+EXPERIMENT_CAPTIONS = {
+ 'morning':'Instrumental intimate acoustic jazz trio. Lyrical acoustic piano lead, warm upright bass and softly articulated brushed drums. Natural room sound.',
+ 'lofi':'Instrumental lo-fi jazz. Warm Rhodes lead, rounded electric bass, mellow guitar and a relaxed softly articulated hip-hop beat. Intimate warm production.',
+ 'chillout':'Instrumental coastal downtempo chillout. Airy electric piano lead, clean guitar, warm synthesizer pads, rounded bass and a relaxed understated electronic groove. Spacious clear production.',
+ 'lounge':'Instrumental elegant sunset lounge jazz. Expressive Rhodes lead, mellow jazz guitar, melodic bass and light brushed percussion. Warm intimate production.',
+ 'ambient':'Instrumental ambient piano. Expressive felt piano lead, evolving warm pads and low sustained bass. Spacious natural ambience. No drums or percussion.'}
+DEVELOPMENT = {
+ 'melodic':'A memorable short melodic motif returns with tasteful variations. Begin sparsely, develop the theme, move into a contrasting gentle middle section, then return to the theme with a settled ending. Warm extended harmonies and expressive pauses. Relaxed energy, no dramatic drops. Instrumental only, no vocals.',
+ 'dialogue':'Short melodic questions and answers pass between the lead and accompaniment. The supporting voices become briefly more active, then leave space for the lead to return. Natural expressive timing, varied phrase lengths, gentle changes in texture and a clear ending. Relaxed energy, no harsh accents. Instrumental only, no vocals.'}
+
+def templates(original, style='morning', mood='calm', bpm=None, custom_prompt='', profile='stable'):
+    style_config=STYLES[style]; result=[]
     for i,old in enumerate(original[:6]):
         j=dict(old)
-        tempo=bpm or profile['bpm']
+        tempo=bpm or style_config['bpm']
         if style=='morning':
             prompt=old['prompt']
             if bpm: prompt=prompt.replace('75 BPM',f'{bpm} BPM')
-        else: prompt=f"{profile['prompt']} Tempo {tempo} BPM. {VARIATIONS[i]}"
+        else: prompt=f"{style_config['prompt']} Tempo {tempo} BPM. {VARIATIONS[i]}"
         if mood!='calm' or style!='morning':prompt+=' '+MOODS[mood]['prompt']
+        if profile not in PROFILES:raise ValueError('Unknown musical profile')
+        if profile!='stable':
+            prompt=f"{EXPERIMENT_CAPTIONS[style]} Tempo {tempo} BPM. {DEVELOPMENT[profile]} {VARIATIONS[i]} {MOODS[mood]['prompt']}"
         if custom_prompt.strip():prompt+=' '+custom_prompt.strip()
-        j.update(prompt=prompt,bpm=tempo,style=style,mood=mood);result.append(j)
+        j.update(prompt=prompt,bpm=tempo,style=style,mood=mood)
+        if profile!='stable':j['profile']=profile
+        result.append(j)
     return result
