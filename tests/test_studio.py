@@ -119,6 +119,27 @@ class StudioTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError):self.api('/api/jobs',{'audition':True,'mode':'library'})
         self.assertEqual(len(self.api('/api/state')['jobs']),3)
 
+    def test_profile_comparison_is_paired_and_persistent(self):
+        import pipeline
+        result=self.api('/api/comparison',{'style':'morning'})
+        rows=[r for r in self.api('/api/state')['jobs'] if r['id'] in result['ids']]
+        self.assertEqual(len(rows),3)
+        seeds=[];prompts=[]
+        for row in rows:
+            p=row['payload'];path=self.root/(p['profile']+'.json')
+            self.assertTrue(p['audition']);self.assertTrue(p['audio_only'])
+            command=web.prepare_command({**row,'payload':json.dumps(p)})
+            self.assertIn('--seed-base',command)
+            pipeline.make_jobs(path,150,style='morning',audition=True,profile=p['profile'],seed_base=p['seed_base'])
+            jobs=json.loads(path.read_text());seeds.append([j['seed'] for j in jobs]);prompts.append(jobs[0]['prompt'])
+        self.assertEqual(seeds[0],seeds[1]);self.assertEqual(seeds[1],seeds[2])
+        self.assertEqual(len(set(prompts)),3)
+        web.init()
+        self.assertEqual(len(self.api('/api/state')['jobs']),3)
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/comparison',{'style':'invalid'})
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/jobs',{'profile':'invalid'})
+        with self.assertRaises(urllib.error.HTTPError):self.api('/api/jobs',{'seed_base':True})
+
     def test_auth_validation_and_range(self):
         with self.assertRaises(urllib.error.HTTPError) as error:self.request('/api/state',auth=False)
         self.assertEqual(error.exception.code,401)

@@ -5,7 +5,7 @@ import secrets, shutil, signal, sqlite3, subprocess, sys, threading, time, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, unquote
-from presets import STYLES, MOODS, SCENES, AUDITION_SCENES
+from presets import STYLES, MOODS, SCENES, AUDITION_SCENES, PROFILES
 from music_library import track_date
 
 ROOT=Path(__file__).resolve().parent
@@ -82,7 +82,7 @@ def library():
         timestamp,date_kind=track_date({**r,'sha256':sha},p)
         result.append({'sha':sha,'title':r.get('title',p.stem),'filename':p.name,
             'created_at':timestamp,'date_kind':date_kind,
-            'style':r.get('job',{}).get('style'),'audition':r.get('job',{}).get('audition',False),
+            'profile':r.get('job',{}).get('profile','stable'),'style':r.get('job',{}).get('style'),'audition':r.get('job',{}).get('audition',False),
             'seed':r.get('job',{}).get('seed'),'seconds':r.get('job',{}).get('duration_seconds'),
             'favorite':bool(pref.get('favorite')),'excluded':bool(pref.get('excluded'))})
     return sorted(result,key=lambda x:(-x['created_at'],x['title']))
@@ -94,7 +94,11 @@ def validate(payload):
     if audition:
         if payload.get('mode','create')!='create':raise ValueError('Проба требует генерации новой музыки')
         payload={**payload,'minutes':2.5,'audio_only':True,'track_min':90,'track_max':90,'crossfade':6}
-    out={'audition':audition}
+    profile=payload.get('profile','stable')
+    if not isinstance(profile,str) or profile not in PROFILES:raise ValueError('Неверный музыкальный профиль')
+    seed_base=payload.get('seed_base')
+    if seed_base is not None and (type(seed_base) is not int or not 0<=seed_base<2**31):raise ValueError('Неверный seed')
+    out={'audition':audition,'profile':profile,'seed_base':seed_base}
     out['mode']=payload.get('mode','create')
     if out['mode'] not in ('create','library'):raise ValueError('Недопустимый источник музыки')
     out['title']=str(payload.get('title','')).strip()[:100] or 'Retro Reverie Sounds'
@@ -140,6 +144,19 @@ def enqueue(payload):
                   (id,name,p['title'],json.dumps(p),'queued',time.time()))
     return id
 
+def enqueue_comparison(style):
+    if not isinstance(style,str) or style not in STYLES:raise ValueError('Неизвестный стиль')
+    seed=secrets.randbelow(2**31);group=uuid.uuid4().hex[:8];rows=[];now=time.time()
+    for i,profile in enumerate(PROFILES):
+        p=validate({'title':f'{group} · {PROFILES[profile]["label"]} · {STYLES[style]["label"]}',
+            'style':style,'profile':profile,'seed_base':seed,'audition':True,
+            'time_of_day':AUDITION_SCENES.get(style,'morning')})
+        ident=uuid.uuid4().hex
+        rows.append((ident,'compare_'+group+'_'+profile,p['title'],json.dumps(p),'queued',now+i*.001))
+    with db() as c:
+        c.executemany('INSERT INTO jobs(id,name,title,payload,status,created) VALUES(?,?,?,?,?,?)',rows)
+    return {'ids':[r[0] for r in rows],'group':group,'seed_base':seed}
+
 def action(id, command, confirmed=False):
     with db() as c:
         c.execute('BEGIN IMMEDIATE')
@@ -175,6 +192,8 @@ def prepare_command(row):
     if p.get('custom_prompt'):cmd+=['--custom-prompt',p['custom_prompt']]
     if p['audio_only']:cmd+=['--audio-only']
     if p.get('audition'):cmd+=['--audition']
+    if p.get('profile','stable')!='stable':cmd+=['--profile',p['profile']]
+    if p.get('seed_base') is not None:cmd+=['--seed-base',str(p['seed_base'])]
     if p.get('retry'):cmd+=['--retry-failed','--retry-interrupted']
     if p['mode']=='library':
         source=episode/'selected_tracks'
@@ -246,7 +265,7 @@ def snapshot():
             'seconds':state.get('duration_seconds')})
     free=shutil.disk_usage(ROOT).free/1024**3
     return {'jobs':rows,'paused':paused,'episodes':episodes[:100],'free_gb':round(free,1),
-            'presets':{'styles':STYLES,'moods':MOODS,'scenes':SCENES}}
+            'presets':{'profiles':PROFILES,'styles':STYLES,'moods':MOODS,'scenes':SCENES}}
 
 class Handler(BaseHTTPRequestHandler):
     server_version='RetroReverieStudio'
@@ -312,6 +331,7 @@ class Handler(BaseHTTPRequestHandler):
             p=json.loads(self.rfile.read(size));path=urlparse(self.path).path
             if not isinstance(p,dict):raise ValueError('Ожидается JSON-объект')
             if path=='/api/jobs':self.send_json({'id':enqueue(p)},201)
+            elif path=='/api/comparison':self.send_json(enqueue_comparison(p.get('style')),201)
             elif path=='/api/audition':
                 style=p.get('style')
                 if not isinstance(style,str) or style not in AUDITION_SCENES:raise ValueError('Выбери chillout, lounge или ambient')
