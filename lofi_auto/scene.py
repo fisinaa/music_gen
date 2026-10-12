@@ -19,15 +19,74 @@ rng=np.random.default_rng(33)
 rains=[(rng.uniform(550,1650),rng.uniform(-100,900),rng.uniform(160,240),rng.uniform(9,20),int(rng.uniform(20,55))) for _ in range(95)]
 drops=[(rng.uniform(835,1570),rng.uniform(-100,690),rng.uniform(12,31),rng.uniform(1.7,3.3),rng.uniform(0,7)) for _ in range(43)]
 Y,X=np.mgrid[:H,:W].astype(np.float32)
+# Coordinates are authored against the fixed 1600x900 backgrounds. Masks keep
+# architecture, boats, trees and the foreground still; only water is displaced.
+WATER_POLYGONS = {
+ 5:[(1157,326),(1599,312),(1599,438),(1510,455),(1440,513),(1420,558),
+    (1356,590),(1280,590),(1230,574),(1130,553),(1070,532),(970,524),
+    (894,494),(788,480),(790,469),(902,459),(1005,452),(1120,447),
+    (1166,432),(1118,420),(1110,375)],
+ 6:[(1020,462),(1455,460),(1442,497),(1432,554),(1250,563),
+    (1160,548),(1020,530)],
+ 7:[(353,535),(1585,535),(1599,890),(800,890),(737,842),(656,823),
+    (603,797),(570,774),(560,738),(603,681),(591,628),(365,615)]}
+
+@lru_cache(maxsize=3)
+def outdoor_water(index):
+ water=Image.new('L',(W,H));d=ImageDraw.Draw(water)
+ d.polygon(WATER_POLYGONS[index],fill=255)
+ if index==6:
+  # Terrace handrail, vertical bars and both moored sailboats.
+  d.line([(990,491),(1460,516)],fill=0,width=12)
+  for x,y in [(1129,495),(1327,508)]:d.rectangle((x-7,y,x+7,580),fill=0)
+  d.polygon([(1231,462),(1269,459),(1294,503),(1237,505)],fill=0)
+  d.polygon([(1266,485),(1301,485),(1309,553),(1264,558)],fill=0)
+ # Erode before feathering so animated edges stay inside the water.
+ water=water.filter(ImageFilter.MinFilter(9)).filter(ImageFilter.GaussianBlur(3))
+ box=water.getbbox();base=np.asarray(background(index).crop(box),dtype=np.float32)
+ alpha=np.asarray(water.crop(box),dtype=np.float32)[...,None]/255
+ yy,xx=np.mgrid[:base.shape[0],:base.shape[1]].astype(np.float32)
+ return box,base,alpha,xx,yy
+
+def draw_outdoor(index,t):
+ frame=background(index).copy();phase=math.tau*(t%12)/12
+ box,base,alpha,xx,yy=outdoor_water(index)
+ # Subpixel refraction, with smaller waves in the distance. Periodic at 12s.
+ depth=np.clip(yy/max(1,base.shape[0]-1),0,1)
+ strength=(.25+.75*depth)*(1.35 if index==5 else .7)
+ dx=strength*(np.sin(yy*.085+phase*2)+.35*np.sin(xx*.028+yy*.055-phase))
+ dy=strength*.35*np.sin(yy*.11+xx*.016-phase*2)
+ sx=np.clip(xx+dx,0,base.shape[1]-1);sy=np.clip(yy+dy,0,base.shape[0]-1)
+ x0=sx.astype(np.int32);y0=sy.astype(np.int32)
+ x1=np.minimum(x0+1,base.shape[1]-1);y1=np.minimum(y0+1,base.shape[0]-1)
+ fx=(sx-x0)[...,None];fy=(sy-y0)[...,None]
+ moved=(base[y0,x0]*(1-fx)+base[y0,x1]*fx)*(1-fy)+(base[y1,x0]*(1-fx)+base[y1,x1]*fx)*fy
+ # Modulate existing highlights, rather than painting unrelated white lines.
+ shimmer=np.sin(yy*.17+np.sin(xx*.02)+phase*2)*np.sin(xx*.035-yy*.023-phase)
+ moved*=1+shimmer[...,None]*(.035 if index==5 else .022)
+ pixels=np.clip(np.rint(base*(1-alpha)+moved*alpha),0,255).astype('uint8')
+ frame.paste(Image.fromarray(pixels),box[:2])
+ if index==6:
+  # Light stays anchored to the photographed candle flames, with a soft glow.
+  glow=Image.new('RGBA',(W,H));gd=ImageDraw.Draw(glow)
+  for j,(x,y,r) in enumerate([(401,471,12),(610,604,13),(724,596,12),(1347,650,18)]):
+   flicker=.5+.3*math.sin(phase*3+j)+.2*math.sin(phase*7+j*1.8)
+   gd.ellipse((x-r,y-r*1.7,x+r,y+r*1.7),fill=(255,182,77,int(18+35*flicker)))
+  glow=glow.filter(ImageFilter.GaussianBlur(9))
+  frame=Image.alpha_composite(frame.convert('RGBA'),glow).convert('RGB')
+ if index==7:
+  # Two overlapping banks of mist drift slowly over open water, below the shore.
+  fog=(.12*np.exp(-((X-(1000+85*math.sin(phase)))/510)**2-((Y-(532+5*math.cos(phase)))/22)**2)
+      +.065*np.exp(-((X-(740+65*math.cos(phase)))/370)**2-((Y-565)/29)**2))
+  # Smooth horizontal gate excludes the foreground pine and pier.
+  fog*=np.clip((X-390)/210,0,1)
+  frame=Image.composite(Image.new('RGB',(W,H),(199,211,219)),frame,
+      Image.fromarray(np.rint(fog*255).astype('uint8')))
+ return frame
+
 def draw_scene(index,t):
+ if index >= 5:return draw_outdoor(index,t)
  frame=background(index).copy()
- if index >= 5:
-  # Outdoor locations never inherit the café window masks or cup coordinates.
-  if index == 7:
-   fog=.055*np.exp(-((X-(950+35*math.sin(t*.12)))/620)**2-((Y-515)/34)**2)
-   frame=Image.composite(Image.new('RGB',(W,H),(198,210,216)),frame,
-       Image.fromarray((fog*255).astype('uint8')))
-  return frame
  fog=(.075*np.exp(-((X-(1000+t*8))/330)**2-((Y-(345+12*np.sin(t*.3)))/108)**2)+.032*np.exp(-((X-(1490-t*7))/280)**2-((Y-460)/70)**2))*ma
  frame=Image.composite(Image.new('RGB',(W,H),(183,201,210)),frame,Image.fromarray((fog*255*(1 if index in (0,4) else 0)).astype('uint8')))
  layer=Image.new('RGBA',(W,H));ld=ImageDraw.Draw(layer)
