@@ -351,6 +351,10 @@ class Handler(BaseHTTPRequestHandler):
             elif path=='/api/archive/upload':
                 if ARCHIVER is None:raise ValueError('Архиватор ещё не запущен')
                 self.send_json(ARCHIVER.enqueue(p.get('episode')),202)
+            elif path=='/api/archive/delete-local':
+                if p.get('confirmed') is not True:raise ValueError('Подтверди удаление локальных файлов')
+                if ARCHIVER is None:raise ValueError('Архиватор ещё не запущен')
+                self.send_json(ARCHIVER.delete_local(p.get('episode')))
             elif path=='/api/archive/restore':
                 name=p.get('episode','')
                 episode=YOUTUBE.episode(name)

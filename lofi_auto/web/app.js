@@ -81,6 +81,18 @@ function renderEpisodes(){
     finally{upload.disabled=busy||done;}
    });upload.disabled=busy||done;card.append(upload);
   }
+  if(e.video){
+   const hasLocal=e.local_video||e.audio||!ar.cleaned_at;
+   const ready=!!ar.verified_at&&!!ar.files?.['episode.mp4']&&!['queued','uploading','cleaning'].includes(ar.status);
+   const remove=button(hasLocal?'Удалить с ВМ':'Удалено с ВМ',async()=>{
+    if(!confirm('Удалить локальное видео, микс и исходники этого выпуска? Проверенная копия видео останется на Яндекс Диске. Исходные дорожки восстановить нельзя.'))return;
+    remove.disabled=true;
+    try{await api('/api/archive/delete-local',{episode:e.name,confirmed:true});notify('Локальные файлы удалены. Выпуск сохранён на Яндекс Диске.');await refresh();}
+    finally{remove.disabled=!ready||!hasLocal;}
+   });remove.disabled=!ready||!hasLocal;
+   remove.title=ready?'Удалить локальные файлы; архив останется на Яндекс Диске':'Сначала дождись успешной выгрузки на Яндекс Диск';
+   card.append(remove);
+  }
   if(ar.path){
    const a=node('a','Открыть архив на Яндекс Диске');a.href='https://disk.yandex.ru/client/disk'+ar.path.slice(5).split('/').map(encodeURIComponent).join('/');a.target='_blank';a.rel='noopener noreferrer';card.append(a);
    card.append(node('p',ar.cleaned_at?'Архив сохранён; локальные исходники удалены.':'Архив проверен. Очистка ждёт завершения публикаций.','hint'));

@@ -50,6 +50,16 @@ def with_local_video(method):
     return wrapped
 
 
+def with_episode_action(method):
+    """Prevent retry/cancel transitions racing with local cleanup."""
+    @functools.wraps(method)
+    def wrapped(self, ident, *args, **kwargs):
+        episode = self.episode(self.get(ident)['episode'])
+        with episode_lock(episode):
+            return method(self, ident, *args, **kwargs)
+    return wrapped
+
+
 class Disk:
     def __init__(self, data):
         self.folder = Path(data)/'yandex'
@@ -250,21 +260,48 @@ class Archiver:
                     del catalog[sha]
                 save_json(music/'catalog.json',catalog)
 
-    def cleanup(self, episode, state):
-        if time.time()-state.get('restored_at',0) < 3600:return
-        if not self.published(episode.name, state['files']['episode.mp4']['sha256']):return
+    def delete_local(self, name):
+        if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9_-]+',name):
+            raise ArchiveError('Неверный выпуск')
+        episode=self.episodes/name
+        if episode.is_symlink() or not episode.is_dir():raise ArchiveError('Выпуск не найден')
+        with open(episode/'.archive.lock','a') as lock:
+            try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            except BlockingIOError:raise ArchiveError('Выпуск сейчас занят. Дождись завершения операции') from None
+            state=read_json(episode/'archive.json',{})
+            files=state.get('files',{})
+            if not state.get('verified_at') or any(name not in files for name in FILES):
+                raise ArchiveError('Сначала выгрузи выпуск на Яндекс Диск и дождись проверки')
+            for uploader in self.uploaders:
+                with uploader.db() as db:
+                    pending=db.execute("SELECT 1 FROM uploads WHERE episode=? AND status NOT IN ('done','cancelled') AND NOT EXISTS "
+                        '(SELECT 1 FROM uploads child WHERE child.repeat_of=uploads.id)',(episode.name,)).fetchone()
+                if pending:raise ArchiveError('Есть незавершённая публикация. Заверши или отмени её перед удалением')
+            self.cleanup(episode,state,manual=True)
+            return {'status':'archived'}
+
+    def cleanup(self, episode, state, manual=False):
+        if not manual:
+            if time.time()-state.get('restored_at',0) < 3600:return
+            if not self.published(episode.name, state['files']['episode.mp4']['sha256']):return
         # Serialize against both CLI generation and web generation. Enqueue is already
         # serialized by episode_lock; queued uploads block published() above.
         with open(self.root/'.pipeline.lock', 'a') as lock:
             try:fcntl.flock(lock, fcntl.LOCK_EX|fcntl.LOCK_NB)
-            except BlockingIOError:return
-            if read_json(episode/'status.json',{}).get('status') != 'done':return
+            except BlockingIOError:
+                if manual:raise ArchiveError('Идёт генерация или монтаж. Повтори удаление после завершения') from None
+                return
+            if read_json(episode/'status.json',{}).get('status') != 'done':
+                if manual:raise ArchiveError('Выпуск ещё не готов')
+                return
             for other in self.episodes.iterdir():
                 if other == episode or not other.is_dir():continue
                 if read_json(other/'archive.json',{}).get('cleaned_at'):continue
                 for filename in ('settings.json','tracklist.json'):
                     ref = other/filename
-                    if ref.is_file() and str(episode.resolve())+'/' in ref.read_text():return
+                    if ref.is_file() and str(episode.resolve())+'/' in ref.read_text():
+                        if manual:raise ArchiveError('Исходники используются другим выпуском; удаление остановлено')
+                        return
             for record in state['files'].values():
                 if not self.disk.verify(record['path'],record):raise ArchiveError('Архив изменился; очистка остановлена')
             video = episode/'episode.mp4'
