@@ -137,9 +137,11 @@ def validate(payload):
     return out
 
 def enqueue(payload):
-    p=validate(payload);id=uuid.uuid4().hex
+    id=uuid.uuid4().hex
     name='web_'+time.strftime('%Y%m%d_%H%M%S')+'_'+id[:8]
     with db() as c:
+        c.execute('BEGIN IMMEDIATE')
+        p=validate(payload)
         c.execute('INSERT INTO jobs(id,name,title,payload,status,created) VALUES(?,?,?,?,?,?)',
                   (id,name,p['title'],json.dumps(p),'queued',time.time()))
     return id
@@ -261,7 +263,8 @@ def snapshot():
         state=read(folder/'status.json',{})
         if state.get('status')!='done':continue
         episodes.append({'name':folder.name,'title':read(folder/'web_title.json',{}).get('title',folder.name),
-            'video':(folder/'episode.mp4').is_file(),'audio':(folder/'mix.wav').is_file(),
+            'video':(folder/'episode.mp4').is_file() or bool(read(folder/'archive.json',{}).get('files')),'audio':(folder/'mix.wav').is_file(),
+            'local_video':(folder/'episode.mp4').is_file(),'archive':read(folder/'archive.json',{}),
             'seconds':state.get('duration_seconds')})
     free=shutil.disk_usage(ROOT).free/1024**3
     return {'jobs':rows,'paused':paused,'episodes':episodes[:100],'free_gb':round(free,1),
@@ -344,6 +347,13 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({'ok':True})
             elif path=='/api/job-action':
                 action(p.get('id'),p.get('action'),p.get('confirmed'));self.send_json({'ok':True})
+            elif path=='/api/archive/restore':
+                name=p.get('episode','')
+                episode=YOUTUBE.episode(name)
+                from yandex_archive import Disk, episode_lock
+                with episode_lock(episode):
+                    if not (episode/'episode.mp4').exists():Disk(DATA).restore(episode)
+                self.send_json({'ok':True})
             elif path=='/api/vk/upload':
                 if p.get('confirmed') is not True:raise ValueError('Подтверди открытую загрузку в VK')
                 self.send_json({'id':VK.enqueue(p.get('name'),p.get('target_id'))},201)
@@ -400,6 +410,9 @@ def main():
     thread=threading.Thread(target=worker,daemon=True);thread.start()
     youtube_thread=threading.Thread(target=YOUTUBE.run,daemon=True);youtube_thread.start()
     vk_thread=threading.Thread(target=VK.run,daemon=True);vk_thread.start()
+    from yandex_archive import Archiver
+    archiver=Archiver(ROOT,DATA,EPISODES,[YOUTUBE,VK],STOP)
+    archive_thread=threading.Thread(target=archiver.run,daemon=True);archive_thread.start()
     def stop(*_):
         STOP.set()
         with CHILD_LOCK:
