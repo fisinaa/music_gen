@@ -18,6 +18,7 @@ CHILD_LOCK=threading.Lock()
 PASSWORD=''
 YOUTUBE=None
 VK=None
+ARCHIVER=None
 
 def read(path, default=None):
     try:return json.loads(Path(path).read_text())
@@ -347,6 +348,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({'ok':True})
             elif path=='/api/job-action':
                 action(p.get('id'),p.get('action'),p.get('confirmed'));self.send_json({'ok':True})
+            elif path=='/api/archive/upload':
+                if ARCHIVER is None:raise ValueError('Архиватор ещё не запущен')
+                self.send_json(ARCHIVER.enqueue(p.get('episode')),202)
             elif path=='/api/archive/restore':
                 name=p.get('episode','')
                 episode=YOUTUBE.episode(name)
@@ -392,7 +396,7 @@ class Server(ThreadingHTTPServer):
     daemon_threads=True
 
 def main():
-    global PASSWORD, YOUTUBE, VK
+    global PASSWORD, YOUTUBE, VK, ARCHIVER
     ap=argparse.ArgumentParser();ap.add_argument('--host',default=os.environ.get('LOFI_WEB_HOST','127.0.0.1'))
     ap.add_argument('--port',type=int,default=int(os.environ.get('LOFI_WEB_PORT','7861')))
     ap.add_argument('--init-only',action='store_true');a=ap.parse_args()
@@ -411,10 +415,11 @@ def main():
     youtube_thread=threading.Thread(target=YOUTUBE.run,daemon=True);youtube_thread.start()
     vk_thread=threading.Thread(target=VK.run,daemon=True);vk_thread.start()
     from yandex_archive import Archiver
-    archiver=Archiver(ROOT,DATA,EPISODES,[YOUTUBE,VK],STOP)
-    archive_thread=threading.Thread(target=archiver.run,daemon=True);archive_thread.start()
+    ARCHIVER=Archiver(ROOT,DATA,EPISODES,[YOUTUBE,VK],STOP)
+    archive_thread=threading.Thread(target=ARCHIVER.run,daemon=True);archive_thread.start()
     def stop(*_):
         STOP.set()
+        if ARCHIVER:ARCHIVER.wake.set()
         with CHILD_LOCK:
             if CHILD and CHILD.poll() is None:
                 with contextlib.suppress(ProcessLookupError):os.killpg(CHILD.pid,signal.SIGTERM)

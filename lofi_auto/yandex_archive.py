@@ -11,6 +11,7 @@ import re
 import shutil
 import sqlite3
 import time
+import threading
 from urllib.parse import urlencode, urlsplit
 def read_json(*args, **kwargs):
     from youtube_upload import read_json as impl
@@ -163,6 +164,28 @@ class Archiver:
     def __init__(self, root, data, episodes, uploaders, stop):
         self.root, self.episodes = Path(root), Path(episodes)
         self.disk, self.uploaders, self.stop = Disk(data), uploaders, stop
+        self.wake = threading.Event()
+
+    def enqueue(self, name):
+        if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9_-]+',name):
+            raise ArchiveError('Неверный выпуск')
+        episode = self.episodes/name
+        if episode.is_symlink() or not episode.is_dir():raise ArchiveError('Выпуск не найден')
+        if not self.disk.config().get('token'):raise ArchiveError('Сначала подключи Яндекс Диск: bash ~/lofi_auto/connect_yandex.sh')
+        # Do not make an HTTP handler wait behind a multi-gigabyte upload.
+        with open(episode/'.archive.lock','a') as lock:
+            try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            except BlockingIOError:return {'status':'uploading'}
+            if read_json(episode/'status.json',{}).get('status') != 'done':
+                raise ArchiveError('Дождись завершения выпуска')
+            state = read_json(episode/'archive.json',{})
+            if state.get('files') and not state.get('error'):return {'status':state.get('status','verified')}
+            if not (episode/'episode.mp4').is_file():raise ArchiveError('Для выгрузки нужен готовый MP4')
+            save_json(episode/'archive_request.json',{'requested_at':time.time()})
+            state.update(status='queued',error=None)
+            save_json(episode/'archive.json',state)
+        self.wake.set()
+        return {'status':'queued'}
 
     def published(self, name, sha):
         found = False
@@ -270,22 +293,31 @@ class Archiver:
             if not (episode/'episode.mp4').exists() and not old.get('files'):return
             try:
                 # Resume interrupted cleanup without requiring files already removed.
+                if not old.get('files'):
+                    save_json(episode/'archive.json',{'status':'uploading','error':None})
                 state = old if old.get('files') else self.disk.archive(episode)
+                if state.get('status') == 'queued':
+                    state.update(status='verified',error=None)
+                    save_json(episode/'archive.json',state)
+                (episode/'archive_request.json').unlink(missing_ok=True)
                 self.cleanup(episode,state)
             except Exception as exc:
                 state = read_json(episode/'archive.json',{})
+                if not state.get('files'):state['status']='failed'
                 state['error'] = str(exc) if isinstance(exc,ArchiveError) else 'Архивирование не завершено; повторим позже'
                 save_json(episode/'archive.json',state)
 
     def run(self):
         while not self.stop.is_set():
-            if self.disk.config().get('enabled'):
-                for episode in sorted(self.episodes.glob('*')):
-                    if self.stop.is_set():return
-                    if episode.is_dir():
-                        try:self.process(episode)
-                        except Exception:pass  # A bad folder must not kill the worker.
-            self.stop.wait(60)
+            self.wake.clear()
+            enabled = self.disk.config().get('enabled')
+            episodes = sorted(self.episodes.glob('*'), key=lambda ep: (not (ep/'archive_request.json').exists(),ep.name))
+            for episode in episodes:
+                if self.stop.is_set():return
+                if episode.is_dir() and (enabled or (episode/'archive_request.json').exists()):
+                    try:self.process(episode)
+                    except Exception:pass
+            self.wake.wait(60)
 
 
 def connect():

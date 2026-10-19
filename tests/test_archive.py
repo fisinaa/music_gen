@@ -121,6 +121,33 @@ class ArchiveTests(unittest.TestCase):
         self.assertFalse((self.ep/'episode.mp4').exists())
         self.assertFalse((self.ep/'episode.restore.partial').exists())
 
+    def test_manual_upload_is_durable_deduplicated_and_background(self):
+        self.ar.disk.config=lambda: {'token':'test','enabled':False}
+        self.assertEqual(self.ar.enqueue('demo')['status'],'queued')
+        self.assertEqual(self.ar.enqueue('demo')['status'],'queued')
+        self.assertTrue((self.ep/'archive_request.json').is_file())
+        self.assertFalse(self.ar.disk.remote) # HTTP handler never transfers media.
+        restarted=ya.Archiver(self.root,self.root/'data',self.root/'episodes',[],threading.Event())
+        restarted.disk=self.ar.disk
+        real_process=restarted.process
+        def process(ep):
+            real_process(ep);restarted.stop.set();restarted.wake.set()
+        restarted.process=process
+        restarted.run()
+        self.assertFalse((self.ep/'archive_request.json').exists())
+        self.assertEqual(yt.read_json(self.ep/'archive.json')['status'],'verified')
+        self.assertTrue((self.ep/'episode.mp4').exists()) # No publication, no deletion.
+        self.assertEqual(restarted.enqueue('demo')['status'],'verified')
+
+    def test_manual_upload_checks_account_and_episode(self):
+        self.ar.disk.config=lambda: {}
+        with self.assertRaises(ya.ArchiveError):self.ar.enqueue('demo')
+        self.ar.disk.config=lambda: {'token':'test'}
+        with self.assertRaises(ya.ArchiveError):self.ar.enqueue('../demo')
+        yt.save_json(self.ep/'status.json',{'status':'running'})
+        with self.assertRaises(ya.ArchiveError):self.ar.enqueue('demo')
+        self.assertFalse((self.ep/'archive_request.json').exists())
+
     def test_incomplete_archive_never_cleans(self):
         (self.ep/'thumbnail.jpg').unlink()
         with patch.object(self.ar,'published',return_value=True):self.ar.process(self.ep)
