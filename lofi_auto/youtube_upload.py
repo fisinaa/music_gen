@@ -1,5 +1,6 @@
 """YouTube uploads with selectable visibility with durable resumable sessions. No third-party SDK."""
 import contextlib
+from yandex_archive import with_local_video
 import fcntl
 import hashlib
 import json
@@ -211,6 +212,7 @@ class Uploader:
             raise ValueError('Выпуск не найден')
         return path
 
+    @with_local_video
     def enqueue(self, name, channel_id, made_for_kids, synthetic, repeat_of=None, privacy="private"):
         if privacy not in ("private", "unlisted", "public"):
             raise ValueError("Выбери доступ: ограниченный, по ссылке или открытый")

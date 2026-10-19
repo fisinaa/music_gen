@@ -1,5 +1,6 @@
 """Durable VK video queue. Upload bodies stream from disk; uncertain writes never retry."""
 import fcntl
+from yandex_archive import with_local_video
 import http.client
 import json
 import os
@@ -126,6 +127,7 @@ class Uploader:
                 offset INTEGER DEFAULT 0, error TEXT, created REAL, updated REAL, repeat_of TEXT UNIQUE)''')
         os.chmod(self.folder / 'uploads.sqlite', 0o600)
 
+    @with_local_video
     def enqueue(self, name, target_id, repeat_of=None):
         if type(target_id) is not int or target_id == 0:
             raise VKError('Неверная страница VK')

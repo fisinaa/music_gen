@@ -62,7 +62,27 @@ async function publicationEditor(card,e){
  }
  card.append(box);
 }
-function renderEpisodes(){const key=JSON.stringify(state.episodes);if(key===lastEpisodes)return;lastEpisodes=key;const parent=$('#episode-list');parent.replaceChildren();if(!state.episodes.length){parent.append(node('div','Здесь будут готовые выпуски.','empty'));return;}for(const e of state.episodes){const card=node('article',undefined,'card'),base='/media/episode/'+encodeURIComponent(e.name)+'/';const player=node(e.video?'video':'audio');player.controls=true;player.preload='none';player.src=base+(e.video?'episode.mp4':'mix.wav');card.append(player,node('h2',e.title),node('p',`${e.seconds?Math.round(e.seconds/60*10)/10+' минут · ':''}${e.name}`,'hint'));const links=node('div',undefined,'downloads');for(const [file,title] of [[e.video?'episode.mp4':'mix.wav','Скачать'],['tracklist.txt','Треклист']]){const a=node('a',title);a.href=base+file;a.download=file;links.append(a);}card.append(links,button('Оформление выпуска',()=>publicationEditor(card,e)));parent.append(card);}}
+function renderEpisodes(){
+ const key=JSON.stringify(state.episodes);if(key===lastEpisodes)return;lastEpisodes=key;
+ const parent=$('#episode-list');parent.replaceChildren();
+ if(!state.episodes.length){parent.append(node('div','Здесь будут готовые выпуски.','empty'));return;}
+ for(const e of state.episodes){
+  const card=node('article',undefined,'card'),base='/media/episode/'+encodeURIComponent(e.name)+'/';
+  card.append(node('h2',e.title),node('p',`${e.seconds?Math.round(e.seconds/60*10)/10+' минут · ':''}${e.name}`,'hint'));
+  if(e.local_video || e.audio){const player=node(e.local_video?'video':'audio');player.controls=true;player.preload='none';player.src=base+(e.local_video?'episode.mp4':'mix.wav');card.append(player);}
+  const ar=e.archive||{};
+  if(ar.path){
+   const a=node('a','Открыть архив на Яндекс Диске');a.href='https://disk.yandex.ru/client/disk'+ar.path.slice(5).split('/').map(encodeURIComponent).join('/');a.target='_blank';a.rel='noopener noreferrer';card.append(a);
+   card.append(node('p',ar.cleaned_at?'Архив сохранён; локальные исходники удалены.':'Архив проверен. Очистка ждёт завершения публикаций.','hint'));
+  }
+  if(ar.error)card.append(node('p',ar.error,'hint'));
+  if(e.video && !e.local_video)card.append(button('Скачать из архива на сервер',async()=>{notify('Скачиваем видео из архива. Это может занять несколько минут.');await api('/api/archive/restore',{episode:e.name});await refresh();}));
+  const links=node('div',undefined,'downloads');
+  const files=[['tracklist.txt','Треклист']];if(e.local_video || e.audio)files.unshift([e.local_video?'episode.mp4':'mix.wav','Скачать']);
+  for(const [file,title] of files){const a=node('a',title);a.href=base+file;a.download=file;links.append(a);}
+  card.append(links,button('Оформление выпуска',()=>publicationEditor(card,e)));parent.append(card);
+ }
+}
 async function refresh(){try{const first=!state;state=await api('/api/state');$('#connection').textContent='● подключено';$('#disk').textContent=`Свободно на диске: ${state.free_gb} GB`;$('#queue-count').textContent=state.jobs.filter(j=>['queued','running'].includes(j.status)).length;$('#pause').textContent=state.paused?'Продолжить очередь':'Пауза после выпуска';$('#queue-hint').textContent=state.paused?'Очередь на паузе. Текущий выпуск, если есть, завершится.':'Одновременно работает один выпуск. При ошибке очередь автоматически приостановится.';if(first){options($('#style'),state.presets.styles,'morning');options($('#mood'),state.presets.moods,'calm');options($('#profile'),state.presets.profiles,'stable');options($('#time-of-day'),state.presets.scenes,'morning');updateForm();const auditions=$('#audition-buttons');for(const style of ['chillout','lounge','ambient'])auditions.append(button('Проба '+state.presets.styles[style].label,async()=>{await api('/api/audition',{style});notify('Проба добавлена: два трека по 90 секунд.');tab('queue');await refresh();}));}renderJobs();renderEpisodes();}catch(e){$('#connection').textContent='● нет связи';if(!state)notify(e.message);}}
 const uploadNames={queued:'В очереди',uploading:'Загрузка',initiating:'Создание сессии',thumbnail:'Загрузка обложки',done:'Передано YouTube',failed:'Ошибка',thumbnail_failed:'Видео загружено, ошибка обложки',needs_review:'Нужна проверка в YouTube Studio',cancelled:'Отменено'};
 async function refreshYouTube(){try{
