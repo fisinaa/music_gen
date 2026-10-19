@@ -297,12 +297,13 @@ def connect():
     old = disk.config()
     save_json(disk.folder/'config.json', {'token':token,'enabled':False})
     try:
-        code, _ = disk.api('GET')
-        if code != 200:raise ArchiveError(f'Проверка токена: HTTP {code}')
         disk.mkdir('disk:/Lofi')
-    except Exception:
+        if (disk.meta('disk:/Lofi') or {}).get('type') != 'dir':
+            raise ArchiveError('Не удалось прочитать папку /Lofi; нужны права чтения и записи файлов')
+    except Exception as exc:
         save_json(disk.folder/'config.json',old)
-        raise SystemExit('Подключение не удалось; прежняя настройка сохранена') from None
+        reason = str(exc) if isinstance(exc, ArchiveError) else 'Локальная ошибка подключения'
+        raise SystemExit(f'Подключение не удалось: {reason}. Прежняя настройка сохранена') from None
     save_json(disk.folder/'config.json', {'token':token,'enabled':True})
     print('Яндекс Диск подключён: /Lofi. Архивирование и очистка после публикации включены.')
 
