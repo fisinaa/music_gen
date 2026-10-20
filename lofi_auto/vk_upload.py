@@ -1,6 +1,6 @@
 """Durable VK video queue. Upload bodies stream from disk; uncertain writes never retry."""
 import fcntl
-from yandex_archive import with_local_video
+from yandex_archive import with_local_video, with_episode_action
 import http.client
 import json
 import os
@@ -180,6 +180,7 @@ class Uploader:
             rows = c.execute('SELECT id,episode,target_id,size,offset,status,video_id,owner_id,error,created,repeat_of,EXISTS(SELECT 1 FROM uploads child WHERE child.repeat_of=uploads.id) AS has_repeat FROM uploads ORDER BY created DESC LIMIT 100').fetchall()
         return {'account': self.credentials.status(), 'uploads': [dict(r) for r in rows]}
 
+    @with_episode_action
     def action(self, ident, action):
         with self.db() as c:
             if action != 'cancel' or not c.execute("UPDATE uploads SET status='cancelled',updated=? WHERE id=? AND status='queued'", (time.time(), ident)).rowcount:

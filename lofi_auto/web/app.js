@@ -71,6 +71,28 @@ function renderEpisodes(){
   card.append(node('h2',e.title),node('p',`${e.seconds?Math.round(e.seconds/60*10)/10+' минут · ':''}${e.name}`,'hint'));
   if(e.local_video || e.audio){const player=node(e.local_video?'video':'audio');player.controls=true;player.preload='none';player.src=base+(e.local_video?'episode.mp4':'mix.wav');card.append(player);}
   const ar=e.archive||{};
+  const archiveLabels={queued:'В очереди на Яндекс Диск',uploading:'Выгружаем на Яндекс Диск…',failed:'Ошибка выгрузки на Яндекс Диск'};
+  if(archiveLabels[ar.status])card.append(node('p',archiveLabels[ar.status],'hint'));
+  if(e.video){
+   const busy=['queued','uploading'].includes(ar.status),done=!!ar.files&&!ar.error;
+   const upload=button(busy?'Выгрузка выполняется…':done?'На Яндекс Диске':ar.error?'Повторить выгрузку на Яндекс Диск':'Выгрузить на Яндекс Диск',async()=>{
+    upload.disabled=true;
+    try{const result=await api('/api/archive/upload',{episode:e.name});notify(['queued','uploading'].includes(result.status)?'Выпуск поставлен на выгрузку на Яндекс Диск.':'Выпуск уже сохранён на Яндекс Диске.');await refresh();}
+    finally{upload.disabled=busy||done;}
+   });upload.disabled=busy||done;card.append(upload);
+  }
+  if(e.video){
+   const hasLocal=e.local_video||e.audio||!ar.cleaned_at;
+   const ready=!!ar.verified_at&&!!ar.files?.['episode.mp4']&&!['queued','uploading','cleaning'].includes(ar.status);
+   const remove=button(hasLocal?'Удалить с ВМ':'Удалено с ВМ',async()=>{
+    if(!confirm('Удалить локальное видео, микс и исходники этого выпуска? Проверенная копия видео останется на Яндекс Диске. Исходные дорожки восстановить нельзя.'))return;
+    remove.disabled=true;
+    try{await api('/api/archive/delete-local',{episode:e.name,confirmed:true});notify('Локальные файлы удалены. Выпуск сохранён на Яндекс Диске.');await refresh();}
+    finally{remove.disabled=!ready||!hasLocal;}
+   });remove.disabled=!ready||!hasLocal;
+   remove.title=ready?'Удалить локальные файлы; архив останется на Яндекс Диске':'Сначала дождись успешной выгрузки на Яндекс Диск';
+   card.append(remove);
+  }
   if(ar.path){
    const a=node('a','Открыть архив на Яндекс Диске');a.href='https://disk.yandex.ru/client/disk'+ar.path.slice(5).split('/').map(encodeURIComponent).join('/');a.target='_blank';a.rel='noopener noreferrer';card.append(a);
    card.append(node('p',ar.cleaned_at?'Архив сохранён; локальные исходники удалены.':'Архив проверен. Очистка ждёт завершения публикаций.','hint'));

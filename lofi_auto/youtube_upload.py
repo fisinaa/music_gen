@@ -1,6 +1,6 @@
 """YouTube uploads with selectable visibility with durable resumable sessions. No third-party SDK."""
 import contextlib
-from yandex_archive import with_local_video
+from yandex_archive import with_local_video, with_episode_action
 import fcntl
 import hashlib
 import json
@@ -303,6 +303,7 @@ class Uploader:
         with self.db() as c:
             c.execute('UPDATE uploads SET ' + ','.join(k + '=?' for k in values) + ' WHERE id=?', [*values.values(), ident])
 
+    @with_episode_action
     def action(self, ident, action):
         with self.db() as c:
             c.execute('BEGIN IMMEDIATE')

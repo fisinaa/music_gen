@@ -11,6 +11,7 @@ import re
 import shutil
 import sqlite3
 import time
+import threading
 from urllib.parse import urlencode, urlsplit
 def read_json(*args, **kwargs):
     from youtube_upload import read_json as impl
@@ -46,6 +47,16 @@ def with_local_video(method):
             if not (episode/'episode.mp4').exists() and (episode/'archive.json').exists():
                 Disk(self.folder.parent).restore(episode)
             return method(self, name, *args, **kwargs)
+    return wrapped
+
+
+def with_episode_action(method):
+    """Prevent retry/cancel transitions racing with local cleanup."""
+    @functools.wraps(method)
+    def wrapped(self, ident, *args, **kwargs):
+        episode = self.episode(self.get(ident)['episode'])
+        with episode_lock(episode):
+            return method(self, ident, *args, **kwargs)
     return wrapped
 
 
@@ -163,6 +174,28 @@ class Archiver:
     def __init__(self, root, data, episodes, uploaders, stop):
         self.root, self.episodes = Path(root), Path(episodes)
         self.disk, self.uploaders, self.stop = Disk(data), uploaders, stop
+        self.wake = threading.Event()
+
+    def enqueue(self, name):
+        if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9_-]+',name):
+            raise ArchiveError('Неверный выпуск')
+        episode = self.episodes/name
+        if episode.is_symlink() or not episode.is_dir():raise ArchiveError('Выпуск не найден')
+        if not self.disk.config().get('token'):raise ArchiveError('Сначала подключи Яндекс Диск: bash ~/lofi_auto/connect_yandex.sh')
+        # Do not make an HTTP handler wait behind a multi-gigabyte upload.
+        with open(episode/'.archive.lock','a') as lock:
+            try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            except BlockingIOError:return {'status':'uploading'}
+            if read_json(episode/'status.json',{}).get('status') != 'done':
+                raise ArchiveError('Дождись завершения выпуска')
+            state = read_json(episode/'archive.json',{})
+            if state.get('files') and not state.get('error'):return {'status':state.get('status','verified')}
+            if not (episode/'episode.mp4').is_file():raise ArchiveError('Для выгрузки нужен готовый MP4')
+            save_json(episode/'archive_request.json',{'requested_at':time.time()})
+            state.update(status='queued',error=None)
+            save_json(episode/'archive.json',state)
+        self.wake.set()
+        return {'status':'queued'}
 
     def published(self, name, sha):
         found = False
@@ -227,21 +260,48 @@ class Archiver:
                     del catalog[sha]
                 save_json(music/'catalog.json',catalog)
 
-    def cleanup(self, episode, state):
-        if time.time()-state.get('restored_at',0) < 3600:return
-        if not self.published(episode.name, state['files']['episode.mp4']['sha256']):return
+    def delete_local(self, name):
+        if not isinstance(name,str) or not re.fullmatch(r'[A-Za-z0-9_-]+',name):
+            raise ArchiveError('Неверный выпуск')
+        episode=self.episodes/name
+        if episode.is_symlink() or not episode.is_dir():raise ArchiveError('Выпуск не найден')
+        with open(episode/'.archive.lock','a') as lock:
+            try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            except BlockingIOError:raise ArchiveError('Выпуск сейчас занят. Дождись завершения операции') from None
+            state=read_json(episode/'archive.json',{})
+            files=state.get('files',{})
+            if not state.get('verified_at') or any(name not in files for name in FILES):
+                raise ArchiveError('Сначала выгрузи выпуск на Яндекс Диск и дождись проверки')
+            for uploader in self.uploaders:
+                with uploader.db() as db:
+                    pending=db.execute("SELECT 1 FROM uploads WHERE episode=? AND status NOT IN ('done','cancelled') AND NOT EXISTS "
+                        '(SELECT 1 FROM uploads child WHERE child.repeat_of=uploads.id)',(episode.name,)).fetchone()
+                if pending:raise ArchiveError('Есть незавершённая публикация. Заверши или отмени её перед удалением')
+            self.cleanup(episode,state,manual=True)
+            return {'status':'archived'}
+
+    def cleanup(self, episode, state, manual=False):
+        if not manual:
+            if time.time()-state.get('restored_at',0) < 3600:return
+            if not self.published(episode.name, state['files']['episode.mp4']['sha256']):return
         # Serialize against both CLI generation and web generation. Enqueue is already
         # serialized by episode_lock; queued uploads block published() above.
         with open(self.root/'.pipeline.lock', 'a') as lock:
             try:fcntl.flock(lock, fcntl.LOCK_EX|fcntl.LOCK_NB)
-            except BlockingIOError:return
-            if read_json(episode/'status.json',{}).get('status') != 'done':return
+            except BlockingIOError:
+                if manual:raise ArchiveError('Идёт генерация или монтаж. Повтори удаление после завершения') from None
+                return
+            if read_json(episode/'status.json',{}).get('status') != 'done':
+                if manual:raise ArchiveError('Выпуск ещё не готов')
+                return
             for other in self.episodes.iterdir():
                 if other == episode or not other.is_dir():continue
                 if read_json(other/'archive.json',{}).get('cleaned_at'):continue
                 for filename in ('settings.json','tracklist.json'):
                     ref = other/filename
-                    if ref.is_file() and str(episode.resolve())+'/' in ref.read_text():return
+                    if ref.is_file() and str(episode.resolve())+'/' in ref.read_text():
+                        if manual:raise ArchiveError('Исходники используются другим выпуском; удаление остановлено')
+                        return
             for record in state['files'].values():
                 if not self.disk.verify(record['path'],record):raise ArchiveError('Архив изменился; очистка остановлена')
             video = episode/'episode.mp4'
@@ -270,22 +330,31 @@ class Archiver:
             if not (episode/'episode.mp4').exists() and not old.get('files'):return
             try:
                 # Resume interrupted cleanup without requiring files already removed.
+                if not old.get('files'):
+                    save_json(episode/'archive.json',{'status':'uploading','error':None})
                 state = old if old.get('files') else self.disk.archive(episode)
+                if state.get('status') == 'queued':
+                    state.update(status='verified',error=None)
+                    save_json(episode/'archive.json',state)
+                (episode/'archive_request.json').unlink(missing_ok=True)
                 self.cleanup(episode,state)
             except Exception as exc:
                 state = read_json(episode/'archive.json',{})
+                if not state.get('files'):state['status']='failed'
                 state['error'] = str(exc) if isinstance(exc,ArchiveError) else 'Архивирование не завершено; повторим позже'
                 save_json(episode/'archive.json',state)
 
     def run(self):
         while not self.stop.is_set():
-            if self.disk.config().get('enabled'):
-                for episode in sorted(self.episodes.glob('*')):
-                    if self.stop.is_set():return
-                    if episode.is_dir():
-                        try:self.process(episode)
-                        except Exception:pass  # A bad folder must not kill the worker.
-            self.stop.wait(60)
+            self.wake.clear()
+            enabled = self.disk.config().get('enabled')
+            episodes = sorted(self.episodes.glob('*'), key=lambda ep: (not (ep/'archive_request.json').exists(),ep.name))
+            for episode in episodes:
+                if self.stop.is_set():return
+                if episode.is_dir() and (enabled or (episode/'archive_request.json').exists()):
+                    try:self.process(episode)
+                    except Exception:pass
+            self.wake.wait(60)
 
 
 def connect():
@@ -297,12 +366,13 @@ def connect():
     old = disk.config()
     save_json(disk.folder/'config.json', {'token':token,'enabled':False})
     try:
-        code, _ = disk.api('GET')
-        if code != 200:raise ArchiveError(f'Проверка токена: HTTP {code}')
         disk.mkdir('disk:/Lofi')
-    except Exception:
+        if (disk.meta('disk:/Lofi') or {}).get('type') != 'dir':
+            raise ArchiveError('Не удалось прочитать папку /Lofi; нужны права чтения и записи файлов')
+    except Exception as exc:
         save_json(disk.folder/'config.json',old)
-        raise SystemExit('Подключение не удалось; прежняя настройка сохранена') from None
+        reason = str(exc) if isinstance(exc, ArchiveError) else 'Локальная ошибка подключения'
+        raise SystemExit(f'Подключение не удалось: {reason}. Прежняя настройка сохранена') from None
     save_json(disk.folder/'config.json', {'token':token,'enabled':True})
     print('Яндекс Диск подключён: /Lofi. Архивирование и очистка после публикации включены.')
 

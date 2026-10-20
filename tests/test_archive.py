@@ -121,6 +121,74 @@ class ArchiveTests(unittest.TestCase):
         self.assertFalse((self.ep/'episode.mp4').exists())
         self.assertFalse((self.ep/'episode.restore.partial').exists())
 
+    def test_manual_upload_is_durable_deduplicated_and_background(self):
+        self.ar.disk.config=lambda: {'token':'test','enabled':False}
+        self.assertEqual(self.ar.enqueue('demo')['status'],'queued')
+        self.assertEqual(self.ar.enqueue('demo')['status'],'queued')
+        self.assertTrue((self.ep/'archive_request.json').is_file())
+        self.assertFalse(self.ar.disk.remote) # HTTP handler never transfers media.
+        restarted=ya.Archiver(self.root,self.root/'data',self.root/'episodes',[],threading.Event())
+        restarted.disk=self.ar.disk
+        real_process=restarted.process
+        def process(ep):
+            real_process(ep);restarted.stop.set();restarted.wake.set()
+        restarted.process=process
+        restarted.run()
+        self.assertFalse((self.ep/'archive_request.json').exists())
+        self.assertEqual(yt.read_json(self.ep/'archive.json')['status'],'verified')
+        self.assertTrue((self.ep/'episode.mp4').exists()) # No publication, no deletion.
+        self.assertEqual(restarted.enqueue('demo')['status'],'verified')
+
+    def test_manual_upload_checks_account_and_episode(self):
+        self.ar.disk.config=lambda: {}
+        with self.assertRaises(ya.ArchiveError):self.ar.enqueue('demo')
+        self.ar.disk.config=lambda: {'token':'test'}
+        with self.assertRaises(ya.ArchiveError):self.ar.enqueue('../demo')
+        yt.save_json(self.ep/'status.json',{'status':'running'})
+        with self.assertRaises(ya.ArchiveError):self.ar.enqueue('demo')
+        self.assertFalse((self.ep/'archive_request.json').exists())
+
+    def test_manual_delete_requires_archive_and_not_publication(self):
+        with self.assertRaises(ya.ArchiveError):self.ar.delete_local('demo')
+        self.assertTrue((self.ep/'tracks').exists())
+        self.ar.process(self.ep)
+        with patch.object(self.ar,'published',side_effect=AssertionError('Manual deletion does not require publication')):
+            self.assertEqual(self.ar.delete_local('demo')['status'],'archived')
+        self.assertFalse((self.ep/'episode.mp4').exists())
+        self.assertFalse((self.ep/'tracks').exists())
+        self.assertTrue((self.ep/'publication.json').exists())
+        self.assertEqual(self.ar.delete_local('demo')['status'],'archived')
+
+    def test_manual_delete_rechecks_remote(self):
+        self.ar.process(self.ep);self.ar.disk.fail=True
+        with self.assertRaises(ya.ArchiveError):self.ar.delete_local('demo')
+        self.assertTrue((self.ep/'episode.mp4').exists())
+        self.assertTrue((self.ep/'tracks').exists())
+
+    def test_manual_delete_blocks_queued_upload(self):
+        self.ar.process(self.ep)
+        uploader=yt.Uploader(self.root,self.root/'data',self.root/'episodes')
+        self.ar.uploaders=[uploader]
+        with uploader.db() as db:
+            db.execute("INSERT INTO uploads(id,episode,status) VALUES('queued','demo','queued')")
+        with self.assertRaises(ya.ArchiveError):self.ar.delete_local('demo')
+        self.assertTrue((self.ep/'episode.mp4').exists())
+        uploader.update('queued',status='cancelled')
+        self.ar.delete_local('demo')
+        self.assertFalse((self.ep/'episode.mp4').exists())
+
+    def test_manual_delete_blocks_active_generation(self):
+        import fcntl
+        self.ar.process(self.ep)
+        with open(self.root/'.pipeline.lock','a') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX)
+            with self.assertRaises(ya.ArchiveError):self.ar.delete_local('demo')
+        self.assertTrue((self.ep/'episode.mp4').exists())
+
+    def test_manual_delete_rejects_bad_name(self):
+        for name in ('../demo',None,''):
+            with self.assertRaises(ya.ArchiveError):self.ar.delete_local(name)
+
     def test_incomplete_archive_never_cleans(self):
         (self.ep/'thumbnail.jpg').unlink()
         with patch.object(self.ar,'published',return_value=True):self.ar.process(self.ep)
