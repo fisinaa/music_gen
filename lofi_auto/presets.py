@@ -45,6 +45,37 @@ DEVELOPMENT = {
  'melodic':'A memorable short melodic motif returns with tasteful variations. Begin sparsely, develop the theme, move into a contrasting gentle middle section, then return to the theme with a settled ending. Warm extended harmonies and expressive pauses. Relaxed energy, no dramatic drops. Instrumental only, no vocals.',
  'dialogue':'Short melodic questions and answers pass between the lead and accompaniment. The supporting voices become briefly more active, then leave space for the lead to return. Natural expressive timing, varied phrase lengths, gentle changes in texture and a clear ending. Relaxed energy, no harsh accents. Instrumental only, no vocals.'}
 
+# Different ensembles, not just synonyms for the same piano/pad arrangement.
+# Stable remains the listening control. Experimental variants cycle reproducibly.
+ENSEMBLES = {
+ 'morning': [
+  'Acoustic piano trio with upright bass and delicate brushes; gently swung phrasing.',
+  'Mellow hollow-body jazz guitar lead, acoustic piano accompaniment and upright bass; soft bossa pulse.',
+  'Soft vibraphone lead with warm piano chords, upright bass and light brushes; spacious half-time phrasing.'],
+ 'lofi': [
+  'Rhodes lead, rounded electric bass and a loose softly articulated hip-hop beat.',
+  'Mellow muted jazz guitar lead, dusty electric piano chords and soft syncopated drums.',
+  'Soft vibraphone melody, warm organ chords, deep bass and a sparse laid-back beat.'],
+ 'chillout': [
+  'Clean electric guitar lead, airy electric piano, warm bass and a soft broken electronic beat.',
+  'Breathy analog synthesizer lead, wide warm pads and a rounded steady downtempo groove.',
+  'Nylon-string guitar lead, Rhodes answers, rounded bass and delicate hand percussion.'],
+ 'lounge': [
+  'Expressive Rhodes lead, mellow jazz guitar, melodic bass and light brushed percussion.',
+  'Warm muted trumpet lead, sparse piano chords, upright bass and restrained brushes.',
+  'Nylon-string jazz guitar lead, soft vibraphone answers and a gentle bossa rhythm.'],
+ 'ambient': [
+  'Sparse felt piano melody with warm slowly evolving pads and sustained low bass. No drums or percussion.',
+  'Soft bowed cello melody with distant piano answers and spacious warm drones. No drums or percussion.',
+  'Swelling clean electric guitar harmonics with soft analog pads and long expressive silences. No drums or percussion.']}
+HARMONIC_COLORS = [
+ 'Warm major-seventh and added-ninth harmony with an open, hopeful character.',
+ 'Gentle minor-ninth harmony with a reflective, intimate character.',
+ 'Floating suspended harmony with a spacious, unresolved character.',
+ 'Soft major-sixth harmony with a tender, nostalgic character.',
+ 'Warm Dorian modal harmony with subtle movement in the bass.',
+ 'Simple consonant harmony; let changing register and silence shape the melody.']
+
 def templates(original, style='morning', mood='calm', bpm=None, custom_prompt='', profile='stable'):
     style_config=STYLES[style]; result=[]
     for i,old in enumerate(original[:6]):
@@ -57,7 +88,8 @@ def templates(original, style='morning', mood='calm', bpm=None, custom_prompt=''
         if mood!='calm' or style!='morning':prompt+=' '+MOODS[mood]['prompt']
         if profile not in PROFILES:raise ValueError('Unknown musical profile')
         if profile!='stable':
-            prompt=f"{EXPERIMENT_CAPTIONS[style]} Tempo {tempo} BPM. {DEVELOPMENT[profile]} {VARIATIONS[i]} {MOODS[mood]['prompt']}"
+            genre=EXPERIMENT_CAPTIONS[style].split('.',1)[0]+'.'
+            prompt=f"{genre} {ENSEMBLES[style][i%3]} Tempo {tempo} BPM. {HARMONIC_COLORS[i]} {DEVELOPMENT[profile]} {MOODS[mood]['prompt']}"
         if custom_prompt.strip():prompt+=' '+custom_prompt.strip()
         j.update(prompt=prompt,bpm=tempo,style=style,mood=mood)
         if profile!='stable':j['profile']=profile
